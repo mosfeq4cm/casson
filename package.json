@@ -1,0 +1,11 @@
+{
+    "private" : true,
+    "name" : "casson",
+    "version" : "0.0.1",
+    "devDependencies" : {
+        "commander" : "~0.5"
+    },
+    "engine" : {
+        "node" : "0.10.x"
+    }
+}
