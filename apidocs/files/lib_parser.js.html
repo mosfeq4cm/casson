@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>lib/parser.js - Casson API</title>
+    <link rel="stylesheet" href="http://yui.yahooapis.com/3.9.1/build/cssgrids/cssgrids-min.css">
+    <link rel="stylesheet" href="../assets/vendor/prettify/prettify-min.css">
+    <link rel="stylesheet" href="../assets/css/main.css" id="site_styles">
+    <link rel="shortcut icon" type="image/png" href="../assets/favicon.png">
+    <script src="http://yui.yahooapis.com/combo?3.9.1/build/yui/yui-min.js"></script>
+</head>
+<body class="yui3-skin-sam">
+
+<div id="doc">
+    <div id="hd" class="yui3-g header">
+        <div class="yui3-u-3-4">
+            
+                <h1><img src="../assets/css/logo.png" title="Casson API"></h1>
+            
+        </div>
+        <div class="yui3-u-1-4 version">
+            <em>API Docs for: 0.2.0</em>
+        </div>
+    </div>
+    <div id="bd" class="yui3-g">
+
+        <div class="yui3-u-1-4">
+            <div id="docs-sidebar" class="sidebar apidocs">
+                <div id="api-list">
+    <h2 class="off-left">APIs</h2>
+    <div id="api-tabview" class="tabview">
+        <ul class="tabs">
+            <li><a href="#api-classes">Classes</a></li>
+            <li><a href="#api-modules">Modules</a></li>
+        </ul>
+
+        <div id="api-tabview-filter">
+            <input type="search" id="api-filter" placeholder="Type to filter APIs">
+        </div>
+
+        <div id="api-tabview-panel">
+            <ul id="api-classes" class="apis classes">
+            
+                <li><a href="../classes/casson.html">casson</a></li>
+            
+                <li><a href="../classes/Delete.html">Delete</a></li>
+            
+                <li><a href="../classes/Frame.html">Frame</a></li>
+            
+                <li><a href="../classes/Insert.html">Insert</a></li>
+            
+                <li><a href="../classes/KeySpace.html">KeySpace</a></li>
+            
+                <li><a href="../classes/List.html">List</a></li>
+            
+                <li><a href="../classes/Map.html">Map</a></li>
+            
+                <li><a href="../classes/Parser.html">Parser</a></li>
+            
+                <li><a href="../classes/Pool.html">Pool</a></li>
+            
+                <li><a href="../classes/Pool.Connector.html">Pool.Connector</a></li>
+            
+                <li><a href="../classes/Select.html">Select</a></li>
+            
+                <li><a href="../classes/Set.html">Set</a></li>
+            
+                <li><a href="../classes/Table.html">Table</a></li>
+            
+                <li><a href="../classes/Update.html">Update</a></li>
+            
+                <li><a href="../classes/Uuid.html">Uuid</a></li>
+            
+            </ul>
+
+            <ul id="api-modules" class="apis modules">
+            
+                <li><a href="../modules/casson.html">casson</a></li>
+            
+            </ul>
+        </div>
+    </div>
+</div>
+
+            </div>
+        </div>
+        <div class="yui3-u-3-4">
+                <div id="api-options">
+        Show:
+        <label for="api-show-inherited">
+            <input type="checkbox" id="api-show-inherited" checked>
+            Inherited
+        </label>
+
+        <label for="api-show-protected">
+            <input type="checkbox" id="api-show-protected">
+            Protected
+        </label>
+
+        <label for="api-show-private">
+            <input type="checkbox" id="api-show-private">
+            Private
+        </label>
+        <label for="api-show-deprecated">
+            <input type="checkbox" id="api-show-deprecated">
+            Deprecated
+        </label>
+
+    </div>
+
+
+            <div class="apidocs">
+                <div id="docs-main">
+                    <div class="content">
+                        <h1 class="file-heading">File: lib/parser.js</h1>
+
+<div class="file">
+    <pre class="code prettyprint linenums">
+var Dissolve = require(&quot;dissolve&quot;),
+    util = require(&quot;util&quot;),
+    BigInteger = require(&quot;jsbn&quot;),
+    uuid = require(&quot;./uuid&quot;);
+
+/**
+ * Class to parse CQL binary data from Cassandra
+ * @class Parser
+ */
+Parser = function() {
+  // May want remove Dissolve later.
+  Dissolve.call(this);
+
+  /**
+   * Parsed result is stored here
+   * @attribute result
+   */
+  this.result = {};
+
+  /*
+   * The main parsing loop
+   */
+  this.loop(
+    function(end) {
+      this.uint8be(&#x27;version&#x27;).uint8be(&#x27;flags&#x27;).uint8be(
+        &#x27;stream&#x27;).uint8be(&#x27;opcode&#x27;).uint32be(&#x27;meg_len&#x27;).tap
+      (function() {
+        switch (this.vars.opcode) {
+          case 0x00:      // ERROR
+          this.uint32be(&#x27;err_code&#x27;).readnstr(
+            &#x27;err_str&#x27;).tap(
+              function() {
+                this.result[&#x27;error&#x27;] = [this.vars.err_code,
+                                        this.vars.err_str];
+                this.handleErrorOptions();
+              });
+          break;
+          case 0x02:      // READY
+          this.result[&#x27;ready&#x27;] = true;
+          break;
+          case 0x03:      // AUTHENTICATE
+          this.readnstr(&#x27;authenticator&#x27;).tap
+          (function() {
+            this.result[&#x27;authenticator&#x27;] =
+              this.vars.authenticator;
+          });
+          break;
+          case 0x06:      // SUPPORTED
+          this.readnstrmmap(&#x27;supported&#x27;);
+          this.result[&#x27;supported&#x27;] = this.vars.supported;
+          break;
+          case 0x08:      // RESULT
+          this.readResult();
+          break;
+          case 0x0C:      // EVENT
+          break;
+          default:
+          break;
+        }
+        return end(true);
+      });
+    }).tap(
+      function() {
+        this.push(this.vars);
+        this.push(this.result);
+      });
+}
+
+util.inherits(Parser, Dissolve);
+
+/**
+ * @attribute Error codes
+ */
+Parser.error_codes = {
+  0x0000 : &#x27;Server error&#x27;
+, 0x000A : &#x27;Protocol error&#x27;
+, 0x0100 : &#x27;Bad credentials&#x27;
+, 0x1000 : &#x27;Unavailable exception&#x27;
+, 0x1001 : &#x27;Overloaded&#x27;
+, 0x1002 : &#x27;Is bootstrapping&#x27;
+, 0x1003 : &#x27;Truncate error&#x27;
+, 0x1100 : &#x27;Write timeout&#x27;
+, 0x1200 : &#x27;Read timeout&#x27;
+, 0x2000 : &#x27;Syntax error&#x27;
+, 0x2100 : &#x27;Unauthorized&#x27;
+, 0x2200 : &#x27;Invalid&#x27;
+, 0x2300 : &#x27;Config error&#x27;
+, 0x2400 : &#x27;Already exists&#x27;
+, 0x2500 : &#x27;Unprepared&#x27;
+};
+
+/**
+ * Retrieve optional data associated with errors
+ * @private
+ * @method handleErrorOptions
+ */
+Parser.prototype.handleErrorOptions = function() {
+
+  if (this.vars.err_code == 0x1000) {
+    this.uint16be(&#x27;consistency&#x27;).uint32be(&#x27;node_reqd&#x27;).uint32be(
+      &#x27;node_alive&#x27;).tap(
+        function() {
+          this.result[&#x27;error&#x27;].push({
+            &#x27;consistency&#x27; : this.vars.consistency,
+            &#x27;node_required&#x27; : this.vars.node_reqd,
+            &#x27;node_alive&#x27; : this.vars.node_alive });
+
+        });
+  } else if (this.vars.err_code == 0x1100) {
+    this.uint16be(&#x27;consistency&#x27;).uint32be(&#x27;node_recvd&#x27;).uint32be(
+      &#x27;node_bf&#x27;).readnstr(&#x27;write_typ&#x27;).tap(
+        function() {
+          this.result[&#x27;error&#x27;].push({
+            &#x27;consistency&#x27; : this.vars.consistency,
+            &#x27;node_received&#x27; : this.vars.node_recvd,
+            &#x27;node_blockfor&#x27; : this.vars.node_bf,
+            &#x27;write_type&#x27; : this.vars.write_typ });
+        });
+  } else if (this.vars.err_code == 0x1200) {
+    this.uint16be(&#x27;consistency&#x27;) .uint32be(&#x27;node_recvd&#x27;) .uint32be(
+      &#x27;node_bf&#x27;) .uint8be(&#x27;data_p&#x27;).tap(
+        function() {
+          this.result[&#x27;error&#x27;].push({
+            &#x27;consistency&#x27; : this.vars.consistency,
+            &#x27;node_received&#x27; : this.vars.node_recvd,
+            &#x27;node_blockfor&#x27; : this.vars.node_bf,
+            &#x27;data_present&#x27; : (this.vars.data_p != 0) ? true : false});
+        });
+  } else if (this.vars.err_code == 0x2400) {
+    this.readnstr(&#x27;keyspace&#x27;).readnstr(&#x27;table&#x27;).tap(
+      function() {
+        this.result[&#x27;error&#x27;].push({
+          &#x27;keyspace&#x27; : this.vars.keyspace,
+          &#x27;table&#x27; : this.vars.table });
+      });
+  }
+};
+
+/**
+ * Read a string with short length
+ * @private
+ * @method readnstr
+ * @param {String} name
+ * @return {Parser}
+ */
+Parser.prototype.readnstr = function(name) {
+
+  var n = &#x27;slen&#x27;;
+  return this.uint16be(n).tap(
+    function() {
+      this.string(name, this.vars[n]).tap(
+        function() { delete this.vars[n]; });
+    });
+};
+
+/**
+ * Read a string list with short length and short strings
+ * @private
+ * @method readnstrlst
+ * @param {String} name
+ * @return {Parser}
+ */
+Parser.prototype.readnstrlst = function(name) {
+
+  this.vars[name] = [];
+  return this.uint16be(&#x27;slen&#x27;).tap(function() {
+    var n = this.vars.slen;
+    _rsl_inner(this, name, --n);
+  });
+};
+
+/**
+ * Read a string map with short length with short strings
+ * @private
+ * @method readnstrmmap
+ * @param {String} name
+ * @return {Parser}
+ */
+Parser.prototype.readnstrmmap = function(name) {
+
+  this.vars[name] = {};
+  return this.uint16be(&#x27;slen&#x27;).tap(
+    function() {
+      var n = this.vars.slen;
+      _rmap_inner(this, name, --n);
+    });
+};
+
+/**
+ * Read column specification
+ * @private
+ * @method readColspec
+ * @param {String} name
+ * @return {Parser}
+ */
+Parser.prototype.readColspec = function(name) {
+
+  this.vars[name] = [];
+  var n = this.vars[&#x27;col_count&#x27;];
+  for (var i = 0; i &lt; n; i++) {
+    var c = {};
+    if (this.vars.r_flags != 0x0001) {
+      this.readnstr(&#x27;c_keyspace&#x27;).readnstr(&#x27;c_table&#x27;).tap(
+        function() {
+          c[&#x27;keyspace&#x27;] = this.vars.c_keyspace;
+          c[&#x27;table&#x27;] = this.vars.c_table;
+        });
+    } else {
+      c[&#x27;keyspace&#x27;] = this.vars.g_keyspace;
+      c[&#x27;table&#x27;] = this.vars.g_table;
+    }
+    this.readnstr(&#x27;c_col&#x27;).uint16be(&#x27;c_type&#x27;).tap(
+      function() {
+        c[&#x27;name&#x27;] = this.vars.c_col;
+        c[&#x27;type&#x27;] = this.vars.c_type;
+
+        // Options for custom and collection type
+        if (((this.vars.c_type &amp; 0x0020) != 0) ||
+            (this.vars.c_type === 0x0000)) {
+          this.uint16be(&#x27;c_opt&#x27;).tap(
+            function() {
+              c[&#x27;opt&#x27;] = this.vars.c_opt;
+              if (this.vars.c_type === 0x0021) {
+                this.uint16be(&#x27;c_opt2&#x27;).tap(
+                  function() {
+                    c[&#x27;opt2&#x27;] = this.vars.c_opt2;
+                    this.vars[name].push(JSON.parse(JSON.stringify(c)));
+                  });
+              } else {
+                this.vars[name].push(JSON.parse(JSON.stringify(c)));
+              }
+            });
+        } else {
+          this.vars[name].push(JSON.parse(JSON.stringify(c)));
+        }
+      });
+  }
+  return this;
+};
+
+/**
+ * Read basic data types
+ * @private
+ * @method readBasic
+ * @param {String} val variable name
+ * @param {short} type
+ * @param {int} len length
+ * @return {Parser}
+ */
+Parser.prototype.readBasic = function(val, type, len) {
+  this.vars[val] = &#x27;NULL&#x27;;
+  if (len &lt; 0) {return this;}
+
+  switch (type) {
+    case 0x0000:    // Custom ?
+    break;
+    case 0x0001:    // ascii
+    this.binary(&#x27;v_buf&#x27;, len).tap(
+      function() {
+        this.vars.v_buf.read(
+          this.vars[val], 0, len, &#x27;ascii&#x27;);
+      });
+    break;
+    case 0x0003:    // blob
+    this.binary(&#x27;v_buf&#x27;, len).tap(
+      function() {
+        this.vars[val] = this.vars.v_buf;
+      });
+    break;
+    case 0x0004:    // boolean
+    this.uint8be(&#x27;a_boolean&#x27;).tap(function() {
+      this.vars[val] = (this.vars.a_boolean) ? true : false;
+    });
+    break;
+    case 0x0007:    // double
+    this.doublebe(&#x27;a_double&#x27;).tap(function() {
+      this.vars[val] = this.vars.a_double;
+    });
+    break;
+    case 0x0006:    // decimal
+    this.int32be(&#x27;a_int&#x27;).buffer(&#x27;v_buf&#x27;, len - 4).tap(function() {
+      this.vars[val] = Number(new BigInteger(this.vars.v_buf)) *
+        Number(util.format(&#x27;1e-%d&#x27;, this.vars.a_int));
+    });
+    break;
+    case 0x0008:    // float
+    this.floatbe(&#x27;a_float&#x27;).tap(function() {
+      this.vars[val] = this.vars.a_float;
+    });
+    break;
+    case 0x0002:    // bigint
+    case 0x0005:    // counter
+    this.int64be(&#x27;v_int&#x27;).tap(function() {
+      this.vars[val] = this.vars.v_int;
+    });
+    case 0x000B:    // timestamp
+    this.int64be(&#x27;v_int&#x27;).tap(function() {
+      this.vars[val] = new Date(this.vars.v_int);
+    });
+    break;
+    case 0x000E:    // varint
+    this.buffer(&#x27;v_buf&#x27;, len).tap(function() {
+      this.vars[val] = Number(new BigInteger(this.vars.v_buf));
+    });
+    break;
+    case 0x0009:    // int
+    this.int32be(&#x27;a_int&#x27;).tap(function() {
+      this.vars[val] = this.vars.a_int;
+    });
+    break;
+    case 0x000A:    // text
+    case 0x000D:    // varchar
+    this.string(&#x27;a_text&#x27;, len).tap(function() {
+      this.vars[val] = this.vars.a_text;
+    });
+    break;
+    case 0x000C:    // uuid
+    case 0x000F:    // Timeuuid
+    this.buffer(&#x27;v_buf&#x27;, len).tap(
+      function() {
+        this.vars[val] = uuid.readBuffer(this.vars.v_buf);
+      });
+    break;
+    case 0x0010:    // inet (no port in actual data)
+    this.vars[val] = &#x27;&#x27;;
+    this.buffer(&#x27;v_buf&#x27;, len).tap(
+      function() {
+        if (len === 4) {
+          for (var i = 0; i &lt; len; i++) {
+            this.vars[val] += ((i == 0) ? &#x27;&#x27; : &#x27;,&#x27;) + this.vars.v_buf[i];
+          }
+        } else if (len === 16) {
+          for (var i = 0; i &lt; len; i += 2) {
+            this.vars[val] += ((i == 0) ? &#x27;&#x27; : &#x27;:&#x27;) +
+              this.vars.v_buf.readUInt16(i);
+          }
+        }
+    });
+    break;
+  }
+  return this;
+};
+
+/**
+ * Read a collection item
+ * @private
+ * @method readCollectionPiece
+ * @param {key/value} colspec value spec
+ * @param {short} vs value array or map
+ * @return {Parser}
+ */
+Parser.prototype.readCollectionPiece = function(colspec, vs) {
+
+  return this.int16be(&#x27;klen&#x27;).tap(
+    function() {
+      this.readBasic(&#x27;optk&#x27;, colspec[&#x27;opt&#x27;], this.vars.klen).tap(
+        function() {
+
+          if (colspec[&#x27;opt2&#x27;]) {
+            this.int16be(&#x27;vlen&#x27;).tap(
+              function() {
+                this.readBasic(&#x27;optv&#x27;, colspec[&#x27;opt2&#x27;], this.vars.vlen).tap(
+                  function() {
+                    vs[this.vars.optk] = this.vars.optv;
+                  });
+              });
+
+          } else {
+            vs.push(this.vars.optk);
+          }
+        });
+    });
+}
+
+/**
+ * Context for reading a collection
+ * @private
+ * @method contextCollection
+ * @param {key/value} colspec column specification for the collection
+ * @param {int} i row index
+ * @param {int} j column index
+ * @return {Parser}
+ */
+Parser.prototype.contextCollection = function(colspec, i, j) {
+
+  return this.int32be(&#x27;len&#x27;).tap(
+    function () {
+      if (this.vars.len &gt; 0) {
+        this.int16be(&#x27;b_len&#x27;).tap(
+          function() {
+            this.vars[&#x27;rows&#x27;][i][j] = (colspec[&#x27;opt2&#x27;]) ? {} : [];
+            var len = this.vars.b_len;
+            while (len--) {
+              this.readCollectionPiece(colspec, this.vars[&#x27;rows&#x27;][i][j]);
+            }
+          });
+      } else {
+        this.vars[&#x27;rows&#x27;][i][j] = null;
+      }
+    });
+};
+
+/**
+ * Context for reading a row value
+ * @private
+ * @method contextBasic
+ * @param {int} t column type
+ * @param {int} i row index
+ * @param {int} j column index
+ * @return {Parser}
+ */
+Parser.prototype.contextBasic = function(t, i, j) {
+
+  var ln = &#x27;len&#x27;;
+  var vn = &#x27;val&#x27;;
+  this.int32be(ln).tap(
+    function () {
+      if (this.vars.len &gt; 0) {
+        this.readBasic(vn, t, this.vars[ln]).tap(
+          function () {
+            /*
+            console.log(&#x27;VAL (&#x27; + this.vars[ln] + &#x27;) : &#x27; +
+                        util.inspect(this.vars[vn]));
+             */
+            this.vars[&#x27;rows&#x27;][i][j] = this.vars[vn];
+          });
+      } else {
+        this.vars[&#x27;rows&#x27;][i][j] = null;
+      }
+    });
+};
+
+/**
+ * Read row data using just read column specification
+ * @private
+ * @method readRows
+ * @return {Parser}
+ */
+Parser.prototype.readRows = function() {
+
+  this.vars[&#x27;rows&#x27;] = [];
+  this.result[&#x27;row_count&#x27;] = this.vars.row_count;
+  for (var i = 0; i &lt; this.vars.row_count; i++) {
+    this.vars[&#x27;rows&#x27;].push([]);
+    for (var j = 0; j &lt; this.vars.col_count; j++) {
+      if (this.vars.colspec[j][&#x27;opt&#x27;]) {
+        this.contextCollection(this.vars.colspec[j], i, j).tap(
+          function() {
+            // console.log(&#x27;readRows: &#x27; + util.inspect(this.vars.rows))
+          });;
+      } else {
+        this.contextBasic(this.vars.colspec[j][&#x27;type&#x27;], i, j)
+      }
+    }
+  }
+  return this;
+};
+
+/**
+ * Read the whole column specifications (metadata)
+ * @private
+ * @method readMetadata
+ * @return {Parser}
+ */
+Parser.prototype.readMetadata = function() {
+
+  if (this.vars.r_flags === 0x0001) {
+    this.readnstr(&#x27;g_keyspace&#x27;).readnstr(&#x27;g_table&#x27;).tap(
+      function() {
+        this.readColspec(&#x27;colspec&#x27;);
+      });
+  } else {
+    this.readColspec(&#x27;colspec&#x27;);
+  }
+  return this;
+};
+
+/**
+ * Read result data of different types
+ * @private
+ * @method readResult
+ * @return {Parser}
+ */
+Parser.prototype.readResult = function() {
+
+  return this.uint32be(&#x27;kind&#x27;).tap(
+    function() {
+      switch (this.vars.kind) {
+        case 0x0001:        // Void
+        break;
+        case 0x002:         // Rows
+        this.uint32be(&#x27;r_flags&#x27;).uint32be(&#x27;col_count&#x27;).tap(
+          function() {
+            this.readMetadata().uint32be(&#x27;row_count&#x27;).tap(
+              function() {
+                this.readRows().tap(function() {
+                  this.result[&#x27;colspec&#x27;] = this.vars.colspec;
+                  this.result[&#x27;rows&#x27;] = this.vars.rows;
+                  // console.log(this.result);
+                })
+              });
+          });
+        break;
+        case 0x0003:        // Set keyspace
+        this.readnstr(&#x27;set_keyspace&#x27;).tap(
+          function() {
+            this.result[&#x27;keyspace&#x27;] = this.vars.set_keyspace;
+          });
+        break;
+        case 0x0004:        // Prepared
+        this.uint16be(&#x27;r_flags&#x27;).uint32be(&#x27;col_count&#x27;).tap(
+          this.readMetadata());
+        break;
+        case 0x0005:        // Schema change
+        this.readnstr(&#x27;sc_change&#x27;).readnstr(&#x27;sc_keyspace&#x27;).readnstr(
+          &#x27;sc_table&#x27;).tap(
+            function() {
+              this.result[&#x27;changed_schema&#x27;] =
+                [this.vars.sc_change, this.vars.sc_keyspace,
+                 this.vars.sc_table];
+            });
+        break;
+      }
+    });
+};
+
+/*
+ * Helper function for reading string list
+ * @private
+ */
+var _rsl_inner = function(t, name, n) {
+
+  if (n &gt;= 0) {
+    t.readnstr(&#x27;sn&#x27;, t.vars[name]).tap(
+      function() {
+        this.vars[name].push(t.vars.sn);
+        delete t.vars[&#x27;sn&#x27;];
+        _rsl_inner(t, name, --n);
+      });
+  }
+};
+
+/*
+ * Helper function for reading string map
+ * @private
+ */
+var _rmap_inner = function(t, name, n) {
+
+  if (n &gt;= 0) {
+    t.readnstr(&#x27;sk&#x27;).readnstrlst(&#x27;vsl&#x27;).tap(
+      function() {
+        t.vars[name][t.vars.sk] = t.vars.vsl;
+        delete t.vars[&#x27;sk&#x27;];
+        delete t.vars[&#x27;vsl&#x27;];
+        _rmap_inner(t, name, --n);
+      });
+  }
+};
+
+module.exports = Parser;
+
+    </pre>
+</div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script src="../assets/vendor/prettify/prettify-min.js"></script>
+<script>prettyPrint();</script>
+<script src="../assets/js/yui-prettify.js"></script>
+<script src="../assets/../api.js"></script>
+<script src="../assets/js/api-filter.js"></script>
+<script src="../assets/js/api-list.js"></script>
+<script src="../assets/js/api-search.js"></script>
+<script src="../assets/js/apidocs.js"></script>
+</body>
+</html>

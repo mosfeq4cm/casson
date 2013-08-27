@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>lib/frame.js - Casson API</title>
+    <link rel="stylesheet" href="http://yui.yahooapis.com/3.9.1/build/cssgrids/cssgrids-min.css">
+    <link rel="stylesheet" href="../assets/vendor/prettify/prettify-min.css">
+    <link rel="stylesheet" href="../assets/css/main.css" id="site_styles">
+    <link rel="shortcut icon" type="image/png" href="../assets/favicon.png">
+    <script src="http://yui.yahooapis.com/combo?3.9.1/build/yui/yui-min.js"></script>
+</head>
+<body class="yui3-skin-sam">
+
+<div id="doc">
+    <div id="hd" class="yui3-g header">
+        <div class="yui3-u-3-4">
+            
+                <h1><img src="../assets/css/logo.png" title="Casson API"></h1>
+            
+        </div>
+        <div class="yui3-u-1-4 version">
+            <em>API Docs for: 0.2.0</em>
+        </div>
+    </div>
+    <div id="bd" class="yui3-g">
+
+        <div class="yui3-u-1-4">
+            <div id="docs-sidebar" class="sidebar apidocs">
+                <div id="api-list">
+    <h2 class="off-left">APIs</h2>
+    <div id="api-tabview" class="tabview">
+        <ul class="tabs">
+            <li><a href="#api-classes">Classes</a></li>
+            <li><a href="#api-modules">Modules</a></li>
+        </ul>
+
+        <div id="api-tabview-filter">
+            <input type="search" id="api-filter" placeholder="Type to filter APIs">
+        </div>
+
+        <div id="api-tabview-panel">
+            <ul id="api-classes" class="apis classes">
+            
+                <li><a href="../classes/casson.html">casson</a></li>
+            
+                <li><a href="../classes/Delete.html">Delete</a></li>
+            
+                <li><a href="../classes/Frame.html">Frame</a></li>
+            
+                <li><a href="../classes/Insert.html">Insert</a></li>
+            
+                <li><a href="../classes/KeySpace.html">KeySpace</a></li>
+            
+                <li><a href="../classes/List.html">List</a></li>
+            
+                <li><a href="../classes/Map.html">Map</a></li>
+            
+                <li><a href="../classes/Parser.html">Parser</a></li>
+            
+                <li><a href="../classes/Pool.html">Pool</a></li>
+            
+                <li><a href="../classes/Pool.Connector.html">Pool.Connector</a></li>
+            
+                <li><a href="../classes/Select.html">Select</a></li>
+            
+                <li><a href="../classes/Set.html">Set</a></li>
+            
+                <li><a href="../classes/Table.html">Table</a></li>
+            
+                <li><a href="../classes/Update.html">Update</a></li>
+            
+                <li><a href="../classes/Uuid.html">Uuid</a></li>
+            
+            </ul>
+
+            <ul id="api-modules" class="apis modules">
+            
+                <li><a href="../modules/casson.html">casson</a></li>
+            
+            </ul>
+        </div>
+    </div>
+</div>
+
+            </div>
+        </div>
+        <div class="yui3-u-3-4">
+                <div id="api-options">
+        Show:
+        <label for="api-show-inherited">
+            <input type="checkbox" id="api-show-inherited" checked>
+            Inherited
+        </label>
+
+        <label for="api-show-protected">
+            <input type="checkbox" id="api-show-protected">
+            Protected
+        </label>
+
+        <label for="api-show-private">
+            <input type="checkbox" id="api-show-private">
+            Private
+        </label>
+        <label for="api-show-deprecated">
+            <input type="checkbox" id="api-show-deprecated">
+            Deprecated
+        </label>
+
+    </div>
+
+
+            <div class="apidocs">
+                <div id="docs-main">
+                    <div class="content">
+                        <h1 class="file-heading">File: lib/frame.js</h1>
+
+<div class="file">
+    <pre class="code prettyprint linenums">
+var uuid = require(&#x27;./uuid&#x27;),
+    Decimal = require(&#x27;decimal&#x27;),
+    util = require(&#x27;util&#x27;),
+    BigInteger = require(&#x27;jsbn&#x27;);
+
+/**
+ * Frame outgoing request of the interaction in native CQL
+ *
+ * @class Frame
+ * @constructor
+ * @param {String} type of the request
+ * @param {String} data payload
+ * @param {String} [consistency] level (default=&#x27;ONE&#x27;)
+ */
+Frame = function(type, data, consistency) {
+
+  /*
+   * Frame flags (not used)
+   */
+  var FLAGS = {&#x27;COMPRESSION&#x27; : 0x01, &#x27;TRACING&#x27; : 0x02};
+
+  /**
+   * Types of messages
+   * @property MESG_TYPES;
+   * @type Object
+   * @readOnly
+   */
+  var MESG_TYPES = {
+    &#x27;Startup&#x27;     : 0x01
+  , &#x27;Credentials&#x27; : 0x04
+  , &#x27;Options&#x27;     : 0x05
+  , &#x27;Query&#x27;       : 0x07
+  , &#x27;Prepare&#x27;     : 0x09
+  , &#x27;Execute&#x27;     : 0x0A
+  , &#x27;Register&#x27;    : 0x0A
+  };
+  Object.freeze(MESG_TYPES);
+
+  /**
+   * Available consistency levels
+   * @property CONSISTENCIES
+   * @type Object
+   * @readOnly
+   */
+  var CONSISTENCIES = {
+    &#x27;ANY&#x27;          : 0x0000
+  , &#x27;ONE&#x27;          : 0x0001
+  , &#x27;TWO&#x27;          : 0x0002
+  , &#x27;THREE&#x27;        : 0x0003
+  , &#x27;QUORUM&#x27;       : 0x0004
+  , &#x27;ALL&#x27;          : 0x0005
+  , &#x27;LOCAL_QUORUM&#x27; : 0x0006
+  , &#x27;EACH_QUORUM&#x27;  : 0x0007
+  };
+  Object.freeze(CONSISTENCIES);
+
+  /**
+   * Available Events for client to register
+   * @property CASSANDRA_EVENTS
+   * @type Array
+   * @readOnly
+   */
+  var CASSANDRA_EVENTS =
+    [&#x27;TOPOLOGY_CHANGE&#x27;, &#x27;STATUS_CHANGE&#x27;, &#x27;SCHEMA_CHANGE&#x27;];
+  Object.freeze(CASSANDRA_EVENTS);
+
+  consistency = consistency || CONSISTENCIES[&#x27;ONE&#x27;];
+
+  this.dbuf = false;
+  this.result = {};
+  this.tracing = false;
+
+  this.type = MESG_TYPES[type];
+  switch (this.type) {
+    case 0x01:                  // startup
+    this.dbuf = Frame.bufferKeyValueStrs(
+      {&#x27;CQL_VERSION&#x27; : Frame.defaults[&#x27;CQL_VERSION&#x27;]});
+    break;
+    case 0x04:                  // credentials
+    if (data.username &amp;&amp; data.password) {
+      this.dbuf = Frame.bufferKeyValueStrs(data);
+    }
+    break;
+    case 0x05:                  // options
+    this.dbuf = new Buffer(0);
+    break;
+    case 0x07:                  // query
+    if (typeof(data) === &#x27;string&#x27;) {
+      var c = new Buffer(4);
+      c.writeInt16BE(consistency, 0);
+      this.dbuf = Buffer.concat([Frame.bufferString(data, true), c]);
+    }
+    break;
+    default:
+    break;
+  };
+
+  this.send = function(opc, conn) {
+    if (this.dbuf) {
+      var fp = Frame.fullPackage(opc, this.type, this.dbuf);
+      if (this.tracing) {
+        console.log(Frame.prettyString(fp));
+      }
+      conn.write(fp);
+    } else {
+      console.log(new Error(&#x27;No data to send&#x27;));
+    }
+  };
+};
+
+/**
+ * Current Default values
+ * @attribute defaults;
+ * @readOnly
+ */
+Frame.defaults = {
+  &#x27;VERSION&#x27;     : 0x01
+, &#x27;CQL_VERSION&#x27; : &#x27;3.0.0&#x27;
+, &#x27;FLAGS&#x27;       : 0x00          // no flags
+};
+Object.freeze(Frame.defaults);
+
+/**
+ * Check for supported version, flag, etc.
+ * @method checkSupported
+ * @static
+ * @param {key/value} supp supported version received from Cassandra
+ * @return {boolean}
+ */
+Frame.checkSupported = function(supp) {
+  var m = false;
+  for (var k in supp) {
+    if (Frame.defaults[k]) {
+      if (supp[k].indexOf(Frame.defaults[k] &gt;= 0)) {
+        m |= true;
+      } else {
+        m &amp;= false;
+      }
+    }
+  }
+  return m;
+};
+
+/**
+ * Kind of pretty print buffer
+ * @method prettyString
+ * @static
+ * @return {String}
+ */
+Frame.prettyString = function(buf) {
+  return buf.toString(&#x27;hex&#x27;, 0, 8) + &#x27;\n&#x27; + buf.toString(&#x27;utf8&#x27;, 8);
+};
+
+/**
+ * Create the complete binary package
+ * @method fullPackage
+ * @static
+ * @param {streamid} Id of the package
+ * @param {short} opcode Code for the package
+ * @param {Buffer} body of the package
+ * @return {Buffer}
+ */
+Frame.fullPackage = function(streamid, opcode, body) {
+  var bodylen = new Buffer(4);
+  bodylen.writeInt32BE(body.length, 0);
+  return Buffer.concat([new Buffer([Frame.defaults[&#x27;VERSION&#x27;],
+                                    Frame.defaults[&#x27;FLAGS&#x27;],
+                                    streamid, opcode]),
+                        bodylen, body]);
+};
+
+/**
+ * Buffer a strings and its size
+ * @method bufferString
+ * @static
+ * @param {Array} slst string list
+ * @return {Buffer}
+ */
+Frame.bufferString = function(str, long_str) {
+  long_str = long_str || false;
+  var bs = new Buffer(str);
+  var l_bs;
+  if (long_str) {
+    l_bs = new Buffer(4);
+    l_bs.writeInt32BE(str.length, 0);
+  } else {
+    l_bs = new Buffer(2);
+    l_bs.writeInt16BE(str.length, 0);
+  }
+  return Buffer.concat([l_bs, bs]);
+};
+
+/**
+ * Buffer a list of strings and its size
+ * @method bufferStringList
+ * @static
+ * @param {Array} slst string list
+ * @return {Buffer}
+ */
+Frame.bufferStringList = function(slst) {
+  var bufs = [];
+  var l_bs = new Buffer(2);
+  l_bs.writeInt16BE(slst.length, 0);
+  bufs.push(l_bs);
+  for (var i in slst) {
+    bufs.push(Frame.bufferString(slst[i]));
+  }
+  return Buffer.concat(bufs);
+};
+
+/**
+ * Buffer a key/value pairs, where key is a string and value is a string or
+ * a list of strings and its size
+ * @method bufferKeyValueStrs
+ * @static
+ * @param {key/value} bmap key/value pairs
+ * @return {Buffer}
+ */
+Frame.bufferKeyValueStrs = function(bmap) {
+  var bufs = [];
+  var l_bs = new Buffer(2);
+  l_bs.writeInt16BE(Object.keys(bmap).length, 0);
+  bufs.push(l_bs);
+  for (var k in bmap) {
+    bufs.push(Frame.bufferString(k));
+    bufs.push((bmap[k] instanceof Array) ?
+              Frame.bufferStringList(bmap[k])
+            : Frame.bufferString(bmap[k].toString()));
+  }
+  return Buffer.concat(bufs);
+};
+
+/**
+ * Get size of simple types
+ * @method getSimpleTypeSize
+ * @static
+ * @param {short} vtype
+ * @param {any} value
+ * @return {int} length
+ */
+Frame.getSimpleTypeSize = function(vtype, value) {
+  switch (vtype) {
+    case 0x0000:                // Custom ?
+    case 0x0001:                // ascii
+    case 0x0003:                // blob
+    case 0x000A:                // text
+    case 0x000D:                // varchar
+    return value.length
+    case 0x0004:                // boolean
+    case 0x0008:                // float
+    case 0x0009:                // int
+    return 4;
+    case 0x0006:                // decimal
+    var d = Decimal(value)
+    return new BigInteger(
+      String(d.as_int[&#x27;value&#x27;])).toByteArray().length + 4;
+    case 0x000E:                // varint
+    return new BigInteger(String(value)).toByteArray().length;
+    case 0x0007:                // double
+    case 0x0002:                // bigint
+    case 0x000B:                // timestamp
+    case 0x0005:                // counter
+    return 8;
+    case 0x000C:                // UUID
+    case 0x000F:                // TimeUUID
+    return 16;
+    case 0x0010:                // inet
+    return (value.split(&#x27;.&#x27;).length === 4) ? 4 : 16;
+  }
+  return 0;
+};
+
+/**
+ * Write short length and value in a buffer
+ * @method bufferShortValue
+ * @static
+ * @param {any} value of simple type
+ * @param {short} type
+ * @param {Buffer} buf
+ */
+Frame.bufferShortValue = function(type, value, buf) {
+  var ln = new Buffer(2);
+  ln.writeInt16BE(Frame.getSimpleTypeSize(type, value), 0, 2);
+  buf.push(ln,  Frame.writeValue(value, {&#x27;type&#x27; : type }));
+};
+
+/**
+ * Write a List or Set out
+ * @method writeListSet
+ * @static
+ * @param {List/Set} value
+ * @param {short} type of value
+ * @return {Buffer}
+ */
+Frame.writeListSet = function(value, type) {
+  var bufs = [];
+  var ln = new Buffer(2); ln.writeInt16BE(value.length, 0, 2);
+  bufs.push(ln);
+  for (var i in value) {
+    if (typeof(value[i]) ===&#x27;string&#x27;) {
+      bufs.push(Frame.bufferString(value[i]));
+    } else {
+      Frame.bufferShortValue(type, value[i], bufs);
+    }
+  }
+  return Buffer.concat(bufs);
+};
+
+/**
+ * Write key/value pairs out
+ * @method writeMap
+ * @static
+ * @param {key/value} value
+ * @param {short} ktype key type
+ * @param {short} vtype value type
+ * @return {Buffer}
+ */
+Frame.writeMap = function(value, ktype, vtype) {
+
+  var bufs = [];
+  var keys = Object.keys(value);
+  var ln = new Buffer(2); ln.writeInt16BE(keys.length, 0);
+  bufs.push(ln);
+  for (var k in value) {
+    if (typeof(k) ===&#x27;string&#x27;) {
+      bufs.push(Frame.bufferString(k));
+    } else {
+      Frame.bufferShortValue(ktype, k, bufs);
+    }
+    if (typeof(value[k]) ===&#x27;string&#x27;) {
+      bufs.push(Frame.bufferString(value[k]));
+    } else {
+      Frame.bufferShortValue(vtype, value[k], bufs);
+    }
+  }
+  return Buffer.concat(bufs);
+};
+
+/**
+ * Write the value of various Cassandra types
+ * @method writeValue
+ * @static
+ * @param {any} value of simple type
+ * @param {short} colspec column spec
+ * @example
+      0x0001:                // ascii
+      0x0003:                // blob
+      0x0004:                // boolean
+      0x0007:                // double
+      0x0006:                // decimal
+      0x0008:                // float
+      0x0002:                // bigint
+      0x000B:                // timestamp
+      0x0005:                // counter
+      0x000E:                // varint
+      0x0009:                // int
+      0x000A:                // text
+      0x000D:                // varchar
+      0x000C:                // UUID
+      0x000F:                // TimeUUID
+      0x0010:                // inet
+      0x0020:                // list
+      0x0022:                // set
+      0x0021:                // map
+  * @return {Buffer}
+ */
+Frame.writeValue = function(value, colspec) {
+  var ln, tb;
+  switch (colspec[&#x27;type&#x27;]) {
+    case 0x0000:                // Custom ?
+    case 0x0003:                // blob
+    tb = new Buffer(4 + value.length);
+    tb.writeInt32BE(value.length, 0);
+    tb.write(value, 4, tb.length);
+    break;
+    case 0x0001:                // ascii
+    tb = new Buffer(4 + value.length);
+    tb.writeInt32BE(value.length, 0);
+    tb.write(value, 4, tb.length, &#x27;ascii&#x27;);
+    break;
+    case 0x0004:                // boolean
+    tb = new Buffer(4);
+    tb.writeInt32BE((value) ? 1 : 0, 0);
+    break;
+    case 0x0007:                // double
+    tb = new Buffer(8);
+    tb.writeDoubleBE(value, 0);
+    break;
+    case 0x0006:                // decimal
+    case 0x0008:                // float
+    tb = new Buffer(4);
+    tb.writeFloatBE(value, 0);
+    break;
+    case 0x0002:                // bigint
+    case 0x000B:                // timestamp
+    case 0x0005:                // counter
+    case 0x000E:                // varint
+    tb = new Buffer(8);
+    tb.writeInt32BE(value &gt;&gt; 8, 0);
+    tb.writeInt32BE(value | 0XFFFF, 4);
+    break;
+    case 0x0009:                // int
+    tb = new Buffer(4); tb.writeInt32BE(value, 0);
+    break;
+    case 0x000A:                // text
+    case 0x000D:                // varchar
+    tb = new Buffer(4 + value.length);
+    tb.writeInt32BE(value.length, 0);
+    tb.write(value, 4);
+    break;
+    case 0x000C:                // UUID
+    case 0x000F:                // TimeUUID
+    tb = value.toBuffer();
+    break;
+    case 0x0010:                // inet
+    var ip_port = value.split(&#x27;:&#x27;);
+    var ip_oct = ip_port[0].split(&#x27;.&#x27;);
+    ln = new Buffer(1); ln.writeUInt8(ip_oct.length, 0, 1);
+    var pb = new Buffer(4);
+    if (ip_port.length &gt; 1) {pb.writeInt32BE(ip_port[1], 0);}
+    tb = Buffer.concat([ln, new Buffer(ip_oct), pb]);
+    break;
+    case 0x0020:                // list
+    case 0x0022:                // set
+    tb = Frame.writeListSet(value, colspec[&#x27;opt&#x27;]);
+    break;
+    case 0x0021:                // map
+    tb = Frame.writeMap(value, colspec[&#x27;opt&#x27;], colspec[&#x27;opt2&#x27;]);
+    break;
+  }
+  return tb;
+};
+
+/**
+ * Write list of values
+ * @method writeValueList
+ * @static
+ * @param {key/value} colspecs Specification of column
+ * @example
+ *     {&#x27;type&#x27; : 0x0002, &#x27;opt&#x27; : 0x000A, opt2 : 0x0009}
+ *     &#x27;opt&#x27;                // used for collection type
+ *     &#x27;opt2&#x27;                     // used only for maps
+ * @param (any} values
+ * @return {Buffer}
+ */
+Frame.writeValueList = function(colspecs, values) {
+  var bufs = [];
+  var ln = new Buffer(2);
+  ln.writeInt16BE(values.length, 0);
+  bufs.push(ln);
+  for (var i in values) {
+    bufs.push(Frame.writeValue(values[i], colspecs[i]));
+  }
+  return Buffer.concat(bufs);
+};
+
+module.exports = Frame;
+
+    </pre>
+</div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script src="../assets/vendor/prettify/prettify-min.js"></script>
+<script>prettyPrint();</script>
+<script src="../assets/js/yui-prettify.js"></script>
+<script src="../assets/../api.js"></script>
+<script src="../assets/js/api-filter.js"></script>
+<script src="../assets/js/api-list.js"></script>
+<script src="../assets/js/api-search.js"></script>
+<script src="../assets/js/apidocs.js"></script>
+</body>
+</html>

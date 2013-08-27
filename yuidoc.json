@@ -1,0 +1,11 @@
+{
+    "name": "Casson API",
+    "description": "API for Casson Object Data Model using CQL binary protocol",
+    "version": "0.2.0",
+    "url": "http://fourthcoastmobility.com/casson-api/",
+    "options": {
+        "paths": [ "./lib" ],
+        "outdir": "./apidocs",
+        "themedir":  "./ctheme"
+    }
+}

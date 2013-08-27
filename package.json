@@ -1,9 +1,20 @@
 {
     "private" : true,
     "name" : "casson",
+    "author" : {"name" : "Mosfeq Rashid",
+                "email" : "mosfeq-github-casson@madrose.net" },
+    "description" : "Cassandra native CQL driver with Object Mapping",
+    "keywords" : ["Cassandra", "Object Mapper", "CQL"],
     "version" : "0.0.1",
+    "dependencies" : {
+        "decimal" : "0.0.2",
+        "dissolve" : "0.3.2",
+        "node-uuid" : "1.4.0",
+        "jsbn" : "0.0.0"
+    },
     "devDependencies" : {
-        "commander" : "~0.5"
+        "mocha" : "1.12.0",
+        "yuidocjs" : "0.3.45"
     },
     "engine" : {
         "node" : "0.10.x"

@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>lib/pool.js - Casson API</title>
+    <link rel="stylesheet" href="http://yui.yahooapis.com/3.9.1/build/cssgrids/cssgrids-min.css">
+    <link rel="stylesheet" href="../assets/vendor/prettify/prettify-min.css">
+    <link rel="stylesheet" href="../assets/css/main.css" id="site_styles">
+    <link rel="shortcut icon" type="image/png" href="../assets/favicon.png">
+    <script src="http://yui.yahooapis.com/combo?3.9.1/build/yui/yui-min.js"></script>
+</head>
+<body class="yui3-skin-sam">
+
+<div id="doc">
+    <div id="hd" class="yui3-g header">
+        <div class="yui3-u-3-4">
+            
+                <h1><img src="../assets/css/logo.png" title="Casson API"></h1>
+            
+        </div>
+        <div class="yui3-u-1-4 version">
+            <em>API Docs for: 0.2.0</em>
+        </div>
+    </div>
+    <div id="bd" class="yui3-g">
+
+        <div class="yui3-u-1-4">
+            <div id="docs-sidebar" class="sidebar apidocs">
+                <div id="api-list">
+    <h2 class="off-left">APIs</h2>
+    <div id="api-tabview" class="tabview">
+        <ul class="tabs">
+            <li><a href="#api-classes">Classes</a></li>
+            <li><a href="#api-modules">Modules</a></li>
+        </ul>
+
+        <div id="api-tabview-filter">
+            <input type="search" id="api-filter" placeholder="Type to filter APIs">
+        </div>
+
+        <div id="api-tabview-panel">
+            <ul id="api-classes" class="apis classes">
+            
+                <li><a href="../classes/casson.html">casson</a></li>
+            
+                <li><a href="../classes/Delete.html">Delete</a></li>
+            
+                <li><a href="../classes/Frame.html">Frame</a></li>
+            
+                <li><a href="../classes/Insert.html">Insert</a></li>
+            
+                <li><a href="../classes/KeySpace.html">KeySpace</a></li>
+            
+                <li><a href="../classes/List.html">List</a></li>
+            
+                <li><a href="../classes/Map.html">Map</a></li>
+            
+                <li><a href="../classes/Parser.html">Parser</a></li>
+            
+                <li><a href="../classes/Pool.html">Pool</a></li>
+            
+                <li><a href="../classes/Pool.Connector.html">Pool.Connector</a></li>
+            
+                <li><a href="../classes/Select.html">Select</a></li>
+            
+                <li><a href="../classes/Set.html">Set</a></li>
+            
+                <li><a href="../classes/Table.html">Table</a></li>
+            
+                <li><a href="../classes/Update.html">Update</a></li>
+            
+                <li><a href="../classes/Uuid.html">Uuid</a></li>
+            
+            </ul>
+
+            <ul id="api-modules" class="apis modules">
+            
+                <li><a href="../modules/casson.html">casson</a></li>
+            
+            </ul>
+        </div>
+    </div>
+</div>
+
+            </div>
+        </div>
+        <div class="yui3-u-3-4">
+                <div id="api-options">
+        Show:
+        <label for="api-show-inherited">
+            <input type="checkbox" id="api-show-inherited" checked>
+            Inherited
+        </label>
+
+        <label for="api-show-protected">
+            <input type="checkbox" id="api-show-protected">
+            Protected
+        </label>
+
+        <label for="api-show-private">
+            <input type="checkbox" id="api-show-private">
+            Private
+        </label>
+        <label for="api-show-deprecated">
+            <input type="checkbox" id="api-show-deprecated">
+            Deprecated
+        </label>
+
+    </div>
+
+
+            <div class="apidocs">
+                <div id="docs-main">
+                    <div class="content">
+                        <h1 class="file-heading">File: lib/pool.js</h1>
+
+<div class="file">
+    <pre class="code prettyprint linenums">
+var net = require(&#x27;net&#x27;),
+    util = require(&#x27;util&#x27;),
+    events = require(&#x27;events&#x27;),
+    Frame = require(&#x27;./frame&#x27;),
+    Table = require(&#x27;./table&#x27;),
+    UUID = require(&#x27;./uuid&#x27;),
+    KeySpace = require(&#x27;./keyspace&#x27;),
+    Parser = require(&#x27;./parser&#x27;);
+
+// var DEFAULT_CONNECTION_IDLE_TIMEOUT = 300000;      // 5 min
+var DEFAULT_CONNECTIONS_PER_HOST = 2;
+var DEFAULT_RESPONSE_TIMEOUT = 3000;
+var DEFAULT_RETRY_INTERVAL = 1000;
+var DEFAULT_SELECT_POLICY = &#x27;round-robin&#x27;; // or &#x27;random
+
+var consoleErrorData = function(err, data) {
+
+  console.log ((err) ? err : data);
+}
+
+var available_stream_ids = [];
+
+for (var i = 255; i &gt; 0; i--) {
+  available_stream_ids.push(i);
+}
+
+var pendingActiviy = {};
+
+var getStreamID = function(conn, time, callback) {
+
+  var t_out = time || DEFAULT_RESPONSE_TIMEOUT;
+  var id = available_stream_ids.pop();
+  pendingActiviy[id] = {};
+  pendingActiviy[id][&#x27;connector&#x27;] = conn;
+  pendingActiviy[id][&#x27;callback&#x27;] = callback;
+  pendingActiviy[id][&#x27;timer&#x27;] = setTimeout(
+    function() {
+    if (callback) {
+      callback(new Error(&#x27;Request timed out&#x27;));
+    }
+    returnStreamID(id);
+  }, t_out);
+  return id;
+};
+
+var returnStreamID = function(id) {
+
+  clearTimeout(pendingActiviy[id][&#x27;timer&#x27;]);
+  delete pendingActiviy[id];
+  available_stream_ids.push(id);
+};
+
+/**
+ * Create a pool of connections to Cassandra. Only one instance with a
+ * single keyspace is assumed. The keyspace can changed after intialization.
+ * @class Pool
+ * @constructor
+ * @param {key/value} config parameters
+ * @example
+ *        { &#x27;hosts&#x27;                    : [&#x27;localhost:9042&#x27;] ,
+ *          &#x27;username&#x27;                 : &lt;db_username&gt;      ,
+ *          &#x27;password&#x27;                 : &lt;db_password&gt;      ,
+ *          &#x27;keyspace&#x27;                 : &lt;keyspace_name&gt;    ,
+ *          &#x27;connection_per_host&#x27;      : 1                  ,
+ *          &#x27;select_policy&#x27;            : round-robin        ,
+ *          &#x27;retry_internal&#x27;           : 1000               ,
+ *          &#x27;respnse_timeout&#x27;          : 2000               }
+ *
+ * The default hostname is &#x60;localhost&#x60; when it is not specified as &#x60;:9042&#x60;,
+ * and port 9042 (the default CQL 3 native port). There can be mulitple hosts.
+ * &#x60;hosts&#x60;, &#x60;username&#x60; and &#x60;password&#x60; are required, and others are optional.
+ * The select_policy can be &#x60;round-robin&#x60; or &#x60;random&#x60;.
+ */
+Pool = function(config) {
+
+  var _one = null;
+  var connectors = {};
+  var keyspace_name = config[&#x27;keyspace&#x27;];
+  var keyspace;
+
+  if (!_one) {
+    _one = this;
+  } else {
+    return _one;
+  };
+
+  this.username = config[&#x27;username&#x27;];
+  this.password = config[&#x27;password&#x27;];
+  this.hostspec = null;
+  this.n_connect = config[&#x27;connection_per_host&#x27;] ||
+    DEFAULT_CONNECTIONS_PER_HOST;
+  this.retry_t = config[&#x27;retry_interval&#x27;] ||
+    DEFAULT_RETRY_INTERVAL;
+  this.respnse_t = config[&#x27;response_timeout&#x27;] ||
+    DEFAULT_RESPONSE_TIMEOUT;
+  this.select_policy = config[&#x27;select_policy&#x27;] ||
+    DEFAULT_SELECT_POLICY;
+  this.selected_c = 0;
+
+  var available_connections = {};
+  if (config[&#x27;hosts&#x27;]) {
+    this.hostspec = [];
+    for (i in config[&#x27;hosts&#x27;]) {
+      var hp = config[&#x27;hosts&#x27;][i].split(&#x27;:&#x27;);
+      if (hp.length == 1) {hp[1] = 9042;}
+      if (hp[0] === &#x27;&#x27;) {hp[0] = &#x27;localhost&#x27;}
+      if (hp[0].match(/^[\w\.]+$/) || hp[0].match(/[\d+\.]+/)) {
+        if (String(hp[1]).match(/^\d+$/)) {
+          this.hostspec.push({&#x27;host&#x27; : hp[0], &#x27;port&#x27; : hp[1]});
+        } else {
+          return new Error(&#x27;port number = &#x27;, hp[1]);
+        }
+      } else {
+        return new Error(&#x27;Host name = &#x27;, hp[0]);
+      }
+    }
+  } else {
+    return new Error(&#x27;No Host speicified&#x27;);
+  }
+
+  /**
+   * Get connection from the pool
+   * @method getConnection
+   * @return {Pool.Connector}
+   */
+  this.getConnection = function() {
+
+    /* If total available number of available connection is
+     * add one more from random host spec.
+     */
+    var uids = Object.keys(connectors);
+    if (uids.length &lt; this.hostspec.length * this.n_connects) {
+      var i = Math.floor(Math.random() * this.hostspec.length);
+      this.setConnector(this.hostspec[i]);
+    }
+
+    var c = null;
+    if (uids.length) {
+      if (this.select_policy === &#x27;round-robin&#x27;) {
+        c = uids[this.selected_c];
+        this.selected_c = (this.selected_c + 1) % uids.length;
+      } else if (this.select_policy === &#x27;random&#x27;) {
+        c = uids[Math.floor(Math.random() * uids.length)];
+      }
+    }
+    if (!c) {
+      console.log(new Error(&#x27;No Connector available&#x27;));
+    }
+    return connectors[c];
+  };
+
+  /**
+   * Frame an outgoing message
+   * @async
+   * @method frameMesg
+   * @param {Frame} frame
+   * @param {Function} callback
+   */
+  this.frameMesg = function (frame, callback) {
+
+    var c = _one.getConnection();
+    var id = getStreamID(c, 0, callback);
+    frame.send(id, c);
+  };
+
+  this.startUp = function() {
+
+    _one.frameMesg(new Frame(&#x27;Startup&#x27;), consoleErrorData);
+  };
+
+  /**
+   * Listener for the result event from connections
+   * @method resultListener
+   * @param {short} opcode Code sent outgoing message to Cassandra
+   * @param {key/value} result  Parsed results including error
+   */
+  this.resultListener = function(data) {
+
+    var p = new Parser();
+    p.write(new Buffer(data));
+    console.log(this.uuid.hex_uuid + &#x27; [&#x27; + p.vars.stream + &#x27;]&#x27;);
+    var ans = pendingActiviy[p.vars.stream];
+    if (p.result[&#x27;ready&#x27;]) {
+      ans[&#x27;connector&#x27;].ready = true;
+      setTimeout(_one.sendForOptions, 10);
+      setTimeout(_one.setKeyspace, 20);
+    } else if (p.result[&#x27;supported&#x27;]) {
+      // console.log(&#x27;Supported: &#x27; + Frame.checkSupported(p.result[&#x27;supported&#x27;]));
+    } else if (p.result[&#x27;authenticator&#x27;]) {
+      setTimeout(_one.sendCredentials(), 10);
+    } else {
+      if (ans[&#x27;callback&#x27;]) {
+        ans.callback(p.result[&#x27;error&#x27;], p.result);
+      }
+    }
+    returnStreamID(p.vars.stream);
+  }
+
+  /**
+   * Set Pool.Connector and receive events
+   * @method setConnector
+   * @param {key/value} spec
+   */
+  this.setConnector = function(spec) {
+
+    var c = new Pool.Connector(spec);
+    connectors[c.uuid.hex_uuid] = c;
+    c.on(&#x27;connect&#x27;, function() {
+      var id = getStreamID(this, 0, consoleErrorData);
+      new Frame(&#x27;Startup&#x27;).send(id, this.conn);
+    });
+    c.on(&#x27;result&#x27;, _one.resultListener);
+    c.on(&#x27;end&#x27;, function(uid) {
+      console.log(&#x27;on end:&#x27;);
+      delete connectors[uid] });
+  };
+
+  // ***
+  // More initialization code down here -- need setConnector
+  // ***
+  for (i in this.hostspec) {
+    for (var j = 0; j &lt; this.n_connect; j++) {
+      _one.setConnector(_one.hostspec[i]);
+    }
+  }
+  // ***
+
+  /**
+   * get the options served by Cassandra
+   * @method sendForOptions
+   */
+  this.sendForOptions = function() {
+
+    _one.frameMesg(new Frame(&#x27;Options&#x27;), consoleErrorData);
+  };
+
+  /**
+   * Set keyspace to use
+   * @method setKeyspace
+   * @return {String|KeySpace} name/keyspace
+   */
+  this.setKeyspace = function(keyspace) {
+
+    var name;
+    if (keyspace instanceof KeySpace) {
+      _one.keyspace = keyspace;
+      name = keyspace.name;
+    } else if (typeof(keyspace) === &#x27;string&#x27;) {
+      name = keyspace;
+      _one.keyspace = new KeySpace(name);
+    } else if (keyspace_name) {
+      name = keyspace_name;
+      _one.keyspace = new KeySpace(name);
+    }
+    if (_one.keyspace) {
+      _one.sendQuery(_one.keyspace.dbUse(), function(err, data) {
+        if (!err) {
+          _one.keyspace.activate();
+        }
+        consoleErrorData(err, data);
+      });
+    }
+  };
+
+  /**
+   * Send user/pw credentials
+   * @method sendCredentials
+   */
+  this.sendCredentials = function() {
+
+    var f = new Frame(&#x27;Credentials&#x27;, {
+      &#x27;username&#x27; : this.username, &#x27;password&#x27; : this.password});
+    _one.frameMesg(f, consoleErrorData);
+  };
+
+  /**
+   * Send a query
+   *
+   * @method sendQuery
+   * @async
+   * @param {String|Select|Insert|Update|Delete|Table} query if it is a Table, dbCreate() method is invoked. if it is a query object, query() method is invoked. Otherwise, query string is sent directly.
+   * @param {Function} [callback]
+   * @param {short} [consistency]
+   * @param {boolean} [raw] Send back raw result instead of array of Table instances for Select.
+   */
+  this.sendQuery = function(query, callback, consistency, raw) {
+
+    callback = callback || consoleErrorData;
+    var framed;
+    if (typeof(query) === &#x27;string&#x27;) {
+      framed = new Frame(&#x27;Query&#x27;, query, consistency);
+    } else if (Object.keys(query).indexOf(&#x27;query&#x27;) &gt;= 0) {
+      framed = new Frame(&#x27;Query&#x27;, query.query(), consistency);
+    } else if (Object.keys(query).indexOf(&#x27;dbCreate&#x27;) &gt;= 0) {
+      framed = new Frame(&#x27;Query&#x27;, query.dbCreate(), consistency);
+    }
+    var wrapped_cb = function(err, result) {
+      if (!err) {
+        var instable = null;
+        if (result.colspec &amp;&amp; !raw) {
+          var i, j, t, cs = [];
+          var nc = result.colspec.length;
+          for (i = 0; i &lt; nc; i++) {
+            if (i == 0) {
+              t = result.colspec[0][&#x27;table&#x27;];
+            }
+            cs.push(result[&#x27;colspec&#x27;][i][&#x27;name&#x27;]);
+          }
+
+          var tb, rc;
+          instable = [];
+          for (i = 0; i &lt; result[&#x27;row_count&#x27;]; i++) {
+            tb = Table.construct(t);
+            rc = result.rows[i];
+            for (j = 0; j &lt; nc; j++) {
+              tb[cs[j]] = rc[j];
+            }
+            instable.push(tb);
+          }
+        }
+        callback(null, (instable) ? instable : result);
+      } else {
+        callback(err);
+      }
+    }
+    if (framed) {
+      _one.frameMesg(framed, wrapped_cb);
+    } else {
+      callback(new Error(&#x27;Incompatitible query&#x27;));
+    }
+  };
+
+};
+
+var readableBuffer = function(s) {
+  var rs = &#x27;&#x27;;
+  for (var i = 0; i &lt; s.length; i++) {
+    if (i != 0) {
+      if ((i % 32) == 0) rs += &#x27;\n&#x27;;
+      else if ((i % 8) == 0) rs += &#x27; &#x27;;
+    }
+    rs += s[i];
+  }
+  return rs;
+};
+
+/**
+ * Connector encapsulate each connection
+ * @class Pool.Connector
+ * @for Pool
+ * @constructor
+ * @param {key/value} options
+ * @example
+ *    options = {&#x27;host&#x27; : host-name, &#x27;port&#x27; : port#, &#x27;retry_t&#x27; : retry-interval}
+ */
+Pool.Connector = function(options) {
+
+  var MAX_ATTEMPTS = 3;
+
+  this.ready = false;
+  this.rt = options[&#x27;retry_t&#x27;];
+  this.attempts = 0;
+
+  this.uuid = new UUID();
+  var ctor = this;
+  this.conn = net.connect(options, function() {
+                // console.log(&#x27;conn connected&#x27;);
+                ctor.emit(&#x27;connect&#x27;, ctor.uuid.hex_uuid);
+
+              });
+  this.conn.on(&#x27;data&#x27;, function(data) {
+    // console.log(&#x27;data received&#x27;);
+    // console.log(new Buffer(data).toString(&#x27;hex&#x27;));
+    ctor.emit(&#x27;result&#x27;, data);
+  });
+  this.conn.on(&#x27;end&#x27;, function() {
+    ctor.emit(&#x27;end&#x27;, this.uuid);
+    console.log(ctor.uuid + &quot; disconnected&quot;);
+  });
+  this.conn.on(&#x27;error&#x27;, function (err) {
+    ctor.ready = false;
+    console.log(&#x27;error: &#x27; + ctor.uuid + &quot; ; attempting reopen.&quot;);
+    if (ctor.rt || ctor.attempts &lt; MAX_ATTEMPTS) {
+      setTimeout(net.connect, ctor.rt, options);
+      ctor.attempts++;
+      ctor.rt = ctor.rt &lt;&lt; ctor.attempts;
+    }
+  });
+
+  /**
+   * write Pass through
+   * @method write
+   * @for Pool.Connector
+   * @param {Buffer} data
+   */
+  this.write = function(data) {
+    return this.conn.write(data);
+  };
+  // this.conn.setTimeout(this.conn.end, DEFAULT_CONNECTION_IDLE_TIMEOUT);
+};
+
+util.inherits(Pool.Connector, events.EventEmitter);
+
+module.exports = Pool;
+
+    </pre>
+</div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script src="../assets/vendor/prettify/prettify-min.js"></script>
+<script>prettyPrint();</script>
+<script src="../assets/js/yui-prettify.js"></script>
+<script src="../assets/../api.js"></script>
+<script src="../assets/js/api-filter.js"></script>
+<script src="../assets/js/api-list.js"></script>
+<script src="../assets/js/api-search.js"></script>
+<script src="../assets/js/apidocs.js"></script>
+</body>
+</html>
