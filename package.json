@@ -5,7 +5,11 @@
                 "email" : "mosfeq-github-casson@madrose.net" },
     "description" : "Cassandra native CQL driver with Object Mapping",
     "keywords" : ["Cassandra", "Object Mapper", "CQL"],
-    "version" : "0.0.1",
+    "version" : "0.2.0",
+    "homepage" : "http://www.fourthcoastmobility.com/casson-api/",
+    "repository": {
+      "url": "https://github.com/mosfeq4cm/casson.git"
+    },
     "dependencies" : {
         "decimal" : "0.0.2",
         "dissolve" : "0.3.2",
@@ -16,6 +20,7 @@
         "mocha" : "1.12.0",
         "yuidocjs" : "0.3.45"
     },
+    "main" : "index",
     "engine" : {
         "node" : "0.10.x"
     }

@@ -2,3 +2,4 @@ libpeerconnection.log
 node_modules
 ctheme
 apidocs/data.json
+coverage
