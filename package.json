@@ -11,7 +11,6 @@
       "url": "https://github.com/mosfeq4cm/casson.git"
     },
     "dependencies" : {
-        "decimal" : "0.0.2",
         "dissolve" : "0.3.2",
         "node-uuid" : "1.4.0",
         "jsbn" : "0.0.0"

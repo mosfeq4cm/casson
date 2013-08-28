@@ -139,7 +139,7 @@ var vm = require(&#x27;vm&#x27;),
   This simple case might enough for many situations. Of course, to do much more
   please keep reading.  A more multi-step approach would be:
  * @example
- *      t = Table.contruct(&#x27;mytable&#x27;, {&#x27;_primary_key&#x27; : [ &#x27;a&#x27; ]);
+ *      t = Table.contruct(&#x27;mytable&#x27;, {&#x27;_PRIMARY_KEYS&#x27; : [ &#x27;a&#x27; ]);
  *      t.a = 1;
  *      t.b = 3;
  *      t.setColumnType({&#x27;b&#x27; : &#x27;float&#x27;});
@@ -375,7 +375,7 @@ function Table(init_columns) {
    *
    *   - &#x60;[[&#x27;p&#x27;, &#x27;q&#x27;], &#x27;b&#x27;]&#x60;, where &#x27;p&#x27; and &#x27;q&#x27; together is a compoiste key and &#x27;b&#x27; is a clustering key.
    *
-   * Same convention is used to specify &#x60;_PRIMARY_KEY&#x60; property during
+   * Same convention is used to specify &#x60;_PRIMARY_KEYS&#x60; property during
    * intialization.
    *
    * @chainable
@@ -464,6 +464,7 @@ function Table(init_columns) {
     var cstr;
     var k = this.getColumns();
 
+    this.setColumnTypes();
     if (k.length &gt;= 1 &amp;&amp; this._primary_keys.length &gt;= 1) {
       cstr = &#x27;CREATE TABLE &#x27; + this._table_name.toLowerCase() + &#x27;(\n&#x27;;
       var kp, ty;
@@ -529,6 +530,15 @@ function Table(init_columns) {
     }
     return tt;
   };
+
+  this.instance = function() {
+    var colnames = this.getColumns();
+    var sa = []
+    for (var i = 0; i &lt; colnames.length; i++) {
+      sa.push(this[colnames[i]] + &#x27; : &#x27; + colnames[i]);
+    }
+    return &#x27;{ &#x27; + sa.join(&#x27;, &#x27;) + &#x27; }&#x27;;
+  }
 }
 
 /**

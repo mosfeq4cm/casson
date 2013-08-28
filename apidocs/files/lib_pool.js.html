@@ -179,7 +179,7 @@ var returnStreamID = function(id) {
  *          &#x27;username&#x27;                 : &lt;db_username&gt;      ,
  *          &#x27;password&#x27;                 : &lt;db_password&gt;      ,
  *          &#x27;keyspace&#x27;                 : &lt;keyspace_name&gt;    ,
- *          &#x27;connection_per_host&#x27;      : 1                  ,
+ *          &#x27;connection_per_host&#x27;      : 2                  ,
  *          &#x27;select_policy&#x27;            : round-robin        ,
  *          &#x27;retry_internal&#x27;           : 1000               ,
  *          &#x27;respnse_timeout&#x27;          : 2000               }
@@ -273,17 +273,13 @@ Pool = function(config) {
    * @method frameMesg
    * @param {Frame} frame
    * @param {Function} callback
+   * @param {Pool.Connectors} conn send through a specified connector
    */
-  this.frameMesg = function (frame, callback) {
+  this.frameMesg = function (frame, callback, conn) {
 
-    var c = _one.getConnection();
+    var c = conn || _one.getConnection();
     var id = getStreamID(c, 0, callback);
     frame.send(id, c);
-  };
-
-  this.startUp = function() {
-
-    _one.frameMesg(new Frame(&#x27;Startup&#x27;), consoleErrorData);
   };
 
   /**
@@ -296,16 +292,16 @@ Pool = function(config) {
 
     var p = new Parser();
     p.write(new Buffer(data));
-    console.log(this.uuid.hex_uuid + &#x27; [&#x27; + p.vars.stream + &#x27;]&#x27;);
+    // console.log(this.uuid.hex_uuid + &#x27; [&#x27; + p.vars.stream + &#x27;] &#x27; + Object.keys(p.result));
     var ans = pendingActiviy[p.vars.stream];
     if (p.result[&#x27;ready&#x27;]) {
       ans[&#x27;connector&#x27;].ready = true;
-      setTimeout(_one.sendForOptions, 10);
-      setTimeout(_one.setKeyspace, 20);
+      _one.sendForOptions(this);
+      _one.setKeyspace(null, this);
     } else if (p.result[&#x27;supported&#x27;]) {
       // console.log(&#x27;Supported: &#x27; + Frame.checkSupported(p.result[&#x27;supported&#x27;]));
     } else if (p.result[&#x27;authenticator&#x27;]) {
-      setTimeout(_one.sendCredentials(), 10);
+      _one.sendCredentials(this);
     } else {
       if (ans[&#x27;callback&#x27;]) {
         ans.callback(p.result[&#x27;error&#x27;], p.result);
@@ -315,7 +311,7 @@ Pool = function(config) {
   }
 
   /**
-   * Set Pool.Connector and receive events
+   * Set Pool.Connector and receive events from connection
    * @method setConnector
    * @param {key/value} spec
    */
@@ -328,9 +324,9 @@ Pool = function(config) {
       new Frame(&#x27;Startup&#x27;).send(id, this.conn);
     });
     c.on(&#x27;result&#x27;, _one.resultListener);
-    c.on(&#x27;end&#x27;, function(uid) {
-      console.log(&#x27;on end:&#x27;);
-      delete connectors[uid] });
+    c.on(&#x27;end&#x27;, function() {
+      console.log(&#x27;Connector&#x27; + c.uuid.hex_uuid + &#x27; dissconnected&#x27;);
+      delete connectors[c.uuid.hex_uuid] });
   };
 
   // ***
@@ -346,18 +342,21 @@ Pool = function(config) {
   /**
    * get the options served by Cassandra
    * @method sendForOptions
+   * @param {Pool.Connectors} conn send through a specified connector
    */
-  this.sendForOptions = function() {
+  this.sendForOptions = function(conn) {
 
-    _one.frameMesg(new Frame(&#x27;Options&#x27;), consoleErrorData);
+    _one.frameMesg(new Frame(&#x27;Options&#x27;), consoleErrorData, conn);
   };
 
   /**
    * Set keyspace to use
    * @method setKeyspace
    * @return {String|KeySpace} name/keyspace
+   * @param {Pool.Connectors} conn send through a specified connector
    */
-  this.setKeyspace = function(keyspace) {
+  this.setKeyspace = function(keyspace, conn) {
+
 
     var name;
     if (keyspace instanceof KeySpace) {
@@ -371,24 +370,26 @@ Pool = function(config) {
       _one.keyspace = new KeySpace(name);
     }
     if (_one.keyspace) {
-      _one.sendQuery(_one.keyspace.dbUse(), function(err, data) {
+      var f = new Frame(&#x27;Query&#x27;, _one.keyspace.dbUse());
+      _one.frameMesg(f, function(err, data) {
         if (!err) {
           _one.keyspace.activate();
         }
         consoleErrorData(err, data);
-      });
+      }, conn);
     }
   };
 
   /**
    * Send user/pw credentials
    * @method sendCredentials
+   * @param {Pool.Connectors} conn send through a specified connector
    */
-  this.sendCredentials = function() {
+  this.sendCredentials = function(conn) {
 
     var f = new Frame(&#x27;Credentials&#x27;, {
       &#x27;username&#x27; : this.username, &#x27;password&#x27; : this.password});
-    _one.frameMesg(f, consoleErrorData);
+    _one.frameMesg(f, consoleErrorData, conn);
   };
 
   /**
@@ -492,8 +493,7 @@ Pool.Connector = function(options) {
     ctor.emit(&#x27;result&#x27;, data);
   });
   this.conn.on(&#x27;end&#x27;, function() {
-    ctor.emit(&#x27;end&#x27;, this.uuid);
-    console.log(ctor.uuid + &quot; disconnected&quot;);
+    ctor.emit(&#x27;end&#x27;);
   });
   this.conn.on(&#x27;error&#x27;, function (err) {
     ctor.ready = false;
@@ -512,7 +512,7 @@ Pool.Connector = function(options) {
    * @param {Buffer} data
    */
   this.write = function(data) {
-    return this.conn.write(data);
+    this.conn.write(data);
   };
   // this.conn.setTimeout(this.conn.end, DEFAULT_CONNECTION_IDLE_TIMEOUT);
 };

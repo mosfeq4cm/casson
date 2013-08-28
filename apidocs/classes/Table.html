@@ -241,7 +241,7 @@ variables. The default derived types are text, int, bigint, float, boolean, time
 power of Cassandra behind it.</p>
 <p> This simple case might enough for many situations. Of course, to do much more
  please keep reading.  A more multi-step approach would be:</p>
-<pre class="code prettyprint"><code> t = Table.contruct(&#39;mytable&#39;, {&#39;_primary_key&#39; : [ &#39;a&#39; ]);
+<pre class="code prettyprint"><code> t = Table.contruct(&#39;mytable&#39;, {&#39;_PRIMARY_KEYS&#39; : [ &#39;a&#39; ]);
  t.a = 1;
  t.b = 3;
  t.setColumnType({&#39;b&#39; : &#39;float&#39;});</code></pre>
@@ -574,7 +574,7 @@ look at <a href="../classes/Select.html" class="crosslink">Select</a>, <a href="
             
         
         
-        <a href="../files/lib_table.js.html#l416"><code>lib&#x2F;table.js:416</code></a>
+        <a href="../files/lib_table.js.html#l426"><code>lib&#x2F;table.js:426</code></a>
         
         </p>
 
@@ -761,7 +761,7 @@ look at <a href="../classes/Select.html" class="crosslink">Select</a>, <a href="
             
         
         
-        <a href="../files/lib_table.js.html#l384"><code>lib&#x2F;table.js:384</code></a>
+        <a href="../files/lib_table.js.html#l385"><code>lib&#x2F;table.js:385</code></a>
         
         </p>
 
@@ -872,7 +872,7 @@ look at <a href="../classes/Select.html" class="crosslink">Select</a>, <a href="
             
         
         
-        <a href="../files/lib_table.js.html#l374"><code>lib&#x2F;table.js:374</code></a>
+        <a href="../files/lib_table.js.html#l375"><code>lib&#x2F;table.js:375</code></a>
         
         </p>
 
@@ -1600,7 +1600,7 @@ the following forms:</p>
 <li><p><code>[[&#39;p&#39;, &#39;q&#39;], &#39;b&#39;]</code>, where &#39;p&#39; and &#39;q&#39; together is a compoiste key and &#39;b&#39; is a clustering key.</p>
 </li>
 </ul>
-<p>Same convention is used to specify <code>_PRIMARY_KEY</code> property during
+<p>Same convention is used to specify <code>_PRIMARY_KEYS</code> property during
 intialization.</p>
 
     </div>

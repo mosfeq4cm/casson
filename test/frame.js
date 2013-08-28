@@ -24,6 +24,10 @@ describe('Frame: ', function() {
       assert.equal(Frame.writeValue(false, {'type' : 0x0004}).toString(),
                    '\u0000\u0000\u0000\u0000');
     })
+    it('decimal', function() {
+      assert.equal(Frame.writeValue(3.15, {'type' : 0x0006}).toString(),
+                   '\u0000\u0000\u0000\u0006����\u0001;');
+    })
     it('double', function() {
       assert.equal(Frame.writeValue(1e9, {'type' : 0x0007}).toString(),
                    'A��e\u0000\u0000\u0000\u0000');
