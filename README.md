@@ -82,7 +82,7 @@ With data in tables, there is a demand for queries:
       console.log(result[0].instance());
     });
     
-    // result: { null : c, foo : b, 1 : a }
+    // result: { c : null, b : foo, a : 1 }
     
     var s2 = new casson.Query.Select(t2, ['a', 'c']);
       pool.sendQuery(s2, function(err, result) {
@@ -92,7 +92,8 @@ With data in tables, there is a demand for queries:
     // result: [ [ 4, { p: 'another', q: 'one' } ],
     //           [ 3, { p: 'some', q: 'string' } ] ]
 
-The `example` directory has the cql and js.
+The `example` directory has the cql and js.  There are some timeouts to deal
+with the some of the setup delays.
 
 Isn't it tempting to think what else is possible.  Of course, the detailed
 API should have the answer.  In case it doesn't, let's use the Wiki to
