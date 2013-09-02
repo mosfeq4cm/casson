@@ -31,9 +31,9 @@ idea to a take a look at [Cassandra documentation](http://www.datastax.com/docum
 
 -   [`jsbn`](https://npmjs.org/package/jsbn) for handling big integers
 
--   [`decimal`](https://npmjs.org/package/decimal) for decimal
-
 -   [`mocha`](http://visionmedia.github.io/mocha/) for testing
+
+-   [`istanbul`](https://npmjs.org/package/istanbul) for test coverage
 
 -   [`YUIDoc`](http://yui.github.io/yuidoc/) for documentation
 
@@ -62,5 +62,9 @@ for now.
 
 ## Contributors
 
-Currently, I (Mosfeq Rashid) wrote this to do what we need to do, but it 
+Currently, I wrote this to do what we need to do, but it
 would be delightful when others make it better.
+
+## Liscense
+
+`casson` is distributed with [Apache License, Version 2.0](http://www.apache.org/licenses/).
