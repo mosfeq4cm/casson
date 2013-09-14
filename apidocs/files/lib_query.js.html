@@ -176,7 +176,7 @@ List = function(arr) {
 }
 
 /**
- * Truns a javascirpt object into Cassandra map
+ * Turns a javascirpt object into Cassandra map
  * @class Map
  * @constructor
  * @param {Object} kv
@@ -252,9 +252,9 @@ Select = function(table_or_name, columns) {
     }
     if (a.length) {
       if (where_and) {
-        this.wstr += &#x27;\n\tAND &#x27; + a.join(&#x27;\n\tAND &#x27;);
+        this.wstr += &#x27; AND &#x27; + a.join(&#x27; AND &#x27;);
       } else {
-        this.wstr =  &#x27;\n\tWHERE &#x27; + a.join(&#x27;\n\tAND &#x27;);
+        this.wstr =  &#x27; WHERE &#x27; + a.join(&#x27; AND &#x27;);
       }
     }
     return this;
@@ -289,7 +289,7 @@ Select = function(table_or_name, columns) {
         a.push(&#x27; &#x27; + k + &#x27; &#x27; + clist[k].toUpperCase());
     }
     if (a.length) {
-      this.ostr = &#x27;\n\tORDER BY&#x27; + a.join(&#x27;,&#x27;);
+      this.ostr = &#x27; ORDER BY&#x27; + a.join(&#x27;,&#x27;);
     }
     return this;
   };
@@ -302,7 +302,7 @@ Select = function(table_or_name, columns) {
    */
   this.limit = function(n) {
     if (String(n).match(/^\d+$/)) {
-      this.lstr = &#x27;\n\tLIMIT &#x27; + n;
+      this.lstr = &#x27; LIMIT &#x27; + n;
     }
     return this;
   };
@@ -313,7 +313,7 @@ Select = function(table_or_name, columns) {
    * @method allowFiltering
    */
   this.allowFiltering = function(n) {
-    this.astr = &quot;\n\tALLOW FILTERING&quot;;
+    this.astr = &quot; ALLOW FILTERING&quot;;
     return this;
   };
 
@@ -338,6 +338,7 @@ Select = function(table_or_name, columns) {
 Insert = function(table_or_name, column_name_values) {
 
   this.istr = &#x27;&#x27;;
+  this.istrp = &#x27;&#x27;;
   this.ustr = &#x27;&#x27;
   this.table =
     (typeof(table_or_name) === &#x27;object&#x27; &amp;&amp; table_or_name instanceof Table) ?
@@ -345,6 +346,7 @@ Insert = function(table_or_name, column_name_values) {
 
   var cols = Object.keys(column_name_values)
   var vals = [], val;
+  var qs = [];
   for (var k in column_name_values) {
     val = (typeof(column_name_values[k]) === &#x27;string&#x27;) ?
       quoteString(column_name_values[k]) : column_name_values[k];
@@ -358,12 +360,13 @@ Insert = function(table_or_name, column_name_values) {
       val = new Map(val);
     }
     vals.push(val);
+    qs.push(&#x27;?&#x27;);
   }
   this.istr += &#x27;INSERT INTO &#x27;;
   this.istr += (this.table !== null) ? this.table._table_name : table_or_name;
 
-  this.istr += &#x27;(&#x27; + cols.toString() + &#x27;) \n\tVALUES (&#x27; +
-    vals + &#x27;)&#x27;;
+  this.istrp = this.istr + &#x27;(&#x27; + cols.toString() + &#x27;)  VALUES (&#x27; + qs + &#x27;)&#x27;;
+  this.istr += &#x27;(&#x27; + cols.toString() + &#x27;)  VALUES (&#x27; + vals + &#x27;)&#x27;;
 
   /**
    * Add using statement
@@ -379,19 +382,29 @@ Insert = function(table_or_name, column_name_values) {
       }
     }
     if (a.length) {
-      this.ustr = &#x27;\n\tUSING &#x27; + a.join(&#x27; AND &#x27;);
+      this.ustr = &#x27; USING &#x27; + a.join(&#x27; AND &#x27;);
     }
     return this;
   };
 
   /**
-   * Complete statement
+   * Query statement
    * @chainable
    * @method query
    * @return {String} the query
    */
   this.query = function(conn) {
     return this.istr + this.ustr;
+  };
+
+  /**
+   * Prepared statement
+   * @chainable prepared
+   * @method
+   * @return {String} the prepared
+   */
+  this.prepared = function(conn) {
+    return this.istrp + this.ustr;
   };
 }
 
@@ -406,7 +419,7 @@ Update = function(table_or_name, column_name_values) {
 
   var collectionOps = [&#x27;set+&#x27;, &#x27;set-&#x27;, &#x27;set=&#x27;,
                        &#x27;list+&#x27;, &#x27;+list&#x27;, &#x27;list-&#x27;, &#x27;list=&#x27;,
-                       &#x27;map+&#x27;, &#x27;map=&#x27;];
+                       &#x27;map+&#x27;, &#x27;map=&#x27;, &#x27;.+&#x27;, &#x27;+.&#x27;, &#x27;.-&#x27;, &#x27;=&#x27;];
   this.pstr = &#x27;&#x27;;
   this.wstr = &#x27;&#x27;;
   this.sstr = &#x27;&#x27;;
@@ -422,7 +435,7 @@ Update = function(table_or_name, column_name_values) {
   this.pstr += &#x27;UPDATE &#x27; + ((this.table !== null) ?
                             this.table._table_name : table_or_name);
 
-  var a = [], ct, val;
+  var a = [], ap = [], ct, val;
   for (var k in column_name_values) {
     if (column_name_values[k] instanceof Object) {
       var op = Object.keys(column_name_values[k]);
@@ -432,30 +445,39 @@ Update = function(table_or_name, column_name_values) {
           switch (op[0]) {
             case &#x27;set+&#x27;:
             a.push(k + &#x27; = &#x27; + k + &#x27; + &#x27; + new Set(val));
+            ap.push(k + &#x27; = &#x27; + k + &#x27; + ? &#x27;);
             break;
             case &#x27;set-&#x27;:
             a.push(k + &#x27; = &#x27; + k + &#x27; - &#x27; + new Set(val));
+            ap.push(k + &#x27; = &#x27; + k + &#x27; - ? &#x27;);
             break;
             case &#x27;set=&#x27;:
             a.push(k + &#x27; = &#x27; + new Set(val));
+            ap.push(k + &#x27; = ? &#x27;);
             break;
             case &#x27;list+&#x27;:
             a.push(k + &#x27; = &#x27; + k + &#x27; + &#x27; + new List(val));
+            ap.push(k + &#x27; = &#x27; + k + &#x27; + ? &#x27;);
             break;
             case &#x27;list-&#x27;:
             a.push(k + &#x27; = &#x27; + k + &#x27; - &#x27; + new List(val));
+            ap.push(k + &#x27; = &#x27; + k + &#x27; - ? &#x27;);
             break;
             case &#x27;+list&#x27;:
             a.push(k + &#x27; = &#x27; + new List(val) + &#x27; + &#x27; + k + &#x27; &#x27;);
+            ap.push(k + &#x27; = ? + &#x27; + k + &#x27; &#x27;);
             break;
             case &#x27;list=&#x27;:
             a.push(k + &#x27; = &#x27; + new List(val));
+            ap.push(k + &#x27; = ? &#x27;);
             break;
             case &#x27;map+&#x27;:
             a.push(k + &#x27; = &#x27; + k + &#x27; + &#x27; + new Map(val));
+            ap.push(k + &#x27; = &#x27; + k + &#x27; + ? &#x27;);
             break;
             case &#x27;map=&#x27;:
             a.push(k + &#x27; = &#x27; + new Map(val));
+            ap.push(k + &#x27; = ? &#x27;);
             break;
           }
         }
@@ -464,10 +486,12 @@ Update = function(table_or_name, column_name_values) {
       val = (typeof(column_name_values[k]) === &#x27;string&#x27;) ?
         quoteString(column_name_values[k]) : column_name_values[k].toString();
       a.push(k + &#x27; = &#x27; + val);
+      ap.push(k + &#x27; = ?&#x27;);
     }
   }
   if (a.length) {
-    this.sstr = &#x27;\n\tSET &#x27; + a.join(&#x27;, &#x27;);
+    this.sstr = &#x27; SET &#x27; + a.join(&#x27;, &#x27;);
+    this.sstrp = &#x27; SET &#x27; + ap.join(&#x27;, &#x27;);
   }
 
   /**
@@ -478,7 +502,7 @@ Update = function(table_or_name, column_name_values) {
    * @param {boolean} restrict to primary key only
    */
   this.where = function(wmap, restrict) {
-    var s = &#x27;&#x27;, a = [];
+    var s = &#x27;&#x27;, a = [], ap = [];
     if (this.table &amp;&amp; restrict) {
       var pks = this.table.getPrimaryKeys();
       for (var c in wmap) {
@@ -488,10 +512,12 @@ Update = function(table_or_name, column_name_values) {
       }
     }
     for (var k in wmap) {
-      _inwhere(k, wmap[k], a)
+      _inwhere(k, wmap[k], a);
+      _inwhere(k, &#x27;?&#x27;, ap);
     }
     if (a.length) {
-      this.wstr =  &#x27;\n\tWHERE &#x27; + a.join(&#x27;\n\tAND &#x27;);
+      this.wstr =  &#x27; WHERE &#x27; + a.join(&#x27; AND &#x27;);
+      this.wstrp =  &#x27; WHERE &#x27; + ap.join(&#x27; AND &#x27;);
     }
     return this;
   };
@@ -510,13 +536,13 @@ Update = function(table_or_name, column_name_values) {
       }
     }
     if (a.length) {
-      this.ustr = &#x27;\n\tUSING &#x27; + a.join(&#x27; AND &#x27;);
+      this.ustr = &#x27; USING &#x27; + a.join(&#x27; AND &#x27;);
     }
     return this;
   };
 
   /**
-   * Complete statement
+   * Query statement
    * @method query
    * @return {String} the query
    */
@@ -524,6 +550,15 @@ Update = function(table_or_name, column_name_values) {
     return this.pstr + this.ustr + this.sstr + this.wstr;
   };
 
+  /**
+   * Prepared statement
+   * @chainable prepared
+   * @method
+   * @return {String} the prepared
+   */
+  this.prepared = function(conn) {
+    return this.pstr + this.ustr + this.sstrp + this.wstrp;
+  };
 };
 
 /**
@@ -566,7 +601,7 @@ Delete = function(table_or_name, column_names) {
       _inwhere(k, wmap[k], a)
     }
     if (a.length) {
-      this.wstr =  &#x27;\n\tWHERE &#x27; + a.join(&#x27;\n\tAND &#x27;);
+      this.wstr =  &#x27; WHERE &#x27; + a.join(&#x27; AND &#x27;);
     }
     return this;
   };
@@ -594,46 +629,6 @@ Delete = function(table_or_name, column_names) {
   };
 };
 
-Batch = function(dml_statements, type) {
-
-  this.ustr = &#x27;&#x27;;
-  this.bstr = &#x27;BEING &#x27;;
-
-  if (type.toLowerCase === &#x27;counter&#x27;)
-    this.bstr += &#x27;COUNTER\n&#x27;;
-  else if (type.toLowerCase === &#x27;unlogged&#x27;)
-    this.bstr += &#x27;UNLOGGED\n&#x27;;
-  else
-    this.bstr += &#x27;BATCH\n&#x27;;
-
-  for (var dml in this.dmls) {
-    this.bstr  += &#x27;\t&#x27; + dml + &#x27;\n&#x27;;
-  }
-  this.bstr += &#x27;apply batch&#x27;;
-
-  /**
-   * Add using statement
-   * @chainable
-   * @method using
-   * @param {value} timestamp
-   */
-  this.using = function(timestamp) {
-    if (String(timestamp).match(/^\d+$/)) {
-      this.ustr = &#x27;USING TIMESTAMP &#x27; + timestamp;
-    }
-    return this;
-  };
-
-  /**
-   * Complete statement
-   * @method query
-   * @return the query
-   */
-  this.query = function() {
-    return this.bstr + this.ustr;
-  };
-};
-
 var _inwhere = function(key, item, arr) {
   var val;
   if (item instanceof Array) {
@@ -654,8 +649,12 @@ var _inwhere = function(key, item, arr) {
       arr.push(a.join(&#x27; AND &#x27;));
     }
   } else {
-    val = (typeof(item) === &#x27;string&#x27;) ? quoteString(item) : item;
-    arr.push(key + &#x27; = &#x27; + val);
+    if (item === &#x27;?&#x27;) {
+      arr.push(key + &#x27; = ?&#x27;);
+    } else {
+      val = (typeof(item) === &#x27;string&#x27;) ? quoteString(item) : item;
+      arr.push(key + &#x27; = &#x27; + val);
+    }
   }
 };
 

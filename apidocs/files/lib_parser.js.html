@@ -626,8 +626,15 @@ Parser.prototype.readResult = function() {
           });
         break;
         case 0x0004:        // Prepared
-        this.uint16be(&#x27;r_flags&#x27;).uint32be(&#x27;col_count&#x27;).tap(
-          this.readMetadata());
+        this.uint8(&#x27;prepared_id&#x27;).uint32be(&#x27;r_flags&#x27;).uint32be(&#x27;col_count&#x27;).tap(
+          function() {
+            this.readMetadata().tap(
+              function() {
+                  this.result[&#x27;prepared_id&#x27;] = this.vars.prepared_id;
+                  this.result[&#x27;rows&#x27;] = this.vars.rows;
+                  // console.log(this.result);
+              })
+          });
         break;
         case 0x0005:        // Schema change
         this.readnstr(&#x27;sc_change&#x27;).readnstr(&#x27;sc_keyspace&#x27;).readnstr(

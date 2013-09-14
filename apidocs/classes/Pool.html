@@ -705,7 +705,7 @@ The select_policy can be <code>round-robin</code> or <code>random</code>.</p>
             
         
         
-        <a href="../files/lib_pool.js.html#l265"><code>lib&#x2F;pool.js:265</code></a>
+        <a href="../files/lib_pool.js.html#l277"><code>lib&#x2F;pool.js:277</code></a>
         
         </p>
 
@@ -903,7 +903,7 @@ The select_policy can be <code>round-robin</code> or <code>random</code>.</p>
             
         
         
-        <a href="../files/lib_pool.js.html#l277"><code>lib&#x2F;pool.js:277</code></a>
+        <a href="../files/lib_pool.js.html#l289"><code>lib&#x2F;pool.js:289</code></a>
         
         </p>
 
@@ -914,7 +914,8 @@ The select_policy can be <code>round-robin</code> or <code>random</code>.</p>
     </div>
 
     <div class="description">
-        <p>Send a query</p>
+        <p>Send a query. Although, query is usaully a object of specified kind, it
+can be used to send raw queries as well.</p>
 
     </div>
 
@@ -1096,7 +1097,19 @@ The select_policy can be <code>round-robin</code> or <code>random</code>.</p>
             
                 <li class="arg">
                     
-                        <code>conn</code>
+                        <code>name/keyspace</code>
+                    
+                </li>
+            
+                <li class="arg">
+                    
+                        <code class="optional">[conn]</code>
+                    
+                </li>
+            
+                <li class="arg">
+                    
+                        <code>UNKNOWN</code>
                     
                 </li>
             
@@ -1104,10 +1117,6 @@ The select_policy can be <code>round-robin</code> or <code>random</code>.</p>
         </div>
     
 
-    
-        <span class="returns-inline">
-            <span class="type">String | <a href="../classes/KeySpace.html" class="crosslink">KeySpace</a></span>
-        </span>
     
 
     
@@ -1156,15 +1165,46 @@ The select_policy can be <code>round-robin</code> or <code>random</code>.</p>
             
                 <li class="param">
                     
-                        <code class="param-name">conn</code>
-                        <span class="type">Pool.Connectors</span>
+                        <code class="param-name">name/keyspace</code>
+                        <span class="type">String | <a href="../classes/KeySpace.html" class="crosslink">KeySpace</a></span>
                     
 
                     
 
                     <div class="param-description">
-                        <p>send through a specified connector</p>
+                         
+                    </div>
 
+                    
+                </li>
+            
+                <li class="param">
+                    
+                        <code class="param-name optional">[conn]</code>
+                        <span class="type">Pool.Connectors</span>
+                        <span class="flag optional" title="This parameter is optional.">optional</span>
+                    
+
+                    
+
+                    <div class="param-description">
+                        <p>send through a specified connector. If not given, set the keyspace for all connections</p>
+
+                    </div>
+
+                    
+                </li>
+            
+                <li class="param">
+                    
+                        <code class="param-name">UNKNOWN</code>
+                        <span class="type"><a href="../classes/KeySpace.html" class="crosslink">KeySpace</a></span>
+                    
+
+                    
+
+                    <div class="param-description">
+                         
                     </div>
 
                     
@@ -1174,20 +1214,6 @@ The select_policy can be <code>round-robin</code> or <code>random</code>.</p>
         </div>
     
 
-    
-        <div class="returns">
-            <h4>Returns:</h4>
-
-            <div class="returns-description">
-                
-                    
-                        <span class="type">String | <a href="../classes/KeySpace.html" class="crosslink">KeySpace</a></span>:
-                    
-                    <p>name/keyspace</p>
-
-                
-            </div>
-        </div>
     
 
     

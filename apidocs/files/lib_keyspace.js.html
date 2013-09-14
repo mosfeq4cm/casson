@@ -149,10 +149,10 @@ function KeySpace(name, options) {
     var cstr = &#x27;CREATE KEYSPACE &#x27; + name;
     var iopt = 0;
     for (var k in options) {
-      cstr += (iopt) ? &#x27; AND&#x27; : &#x27; WITH&#x27;;
       if (k === &#x27;REPLICATION&#x27; || k === &#x27;DURABLE_WRITES&#x27;) {
-        cstr += &#x27; &#x27; + k + &#x27; = &#x27; + options[k];
-        iopt++;
+          cstr += (iopt) ? &#x27; AND&#x27; : &#x27; WITH&#x27;;
+          cstr += &#x27; &#x27; + k + &#x27; = &#x27; + options[k];
+          iopt++;
       }
     }
     return cstr;

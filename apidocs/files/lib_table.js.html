@@ -514,31 +514,6 @@ function Table(init_columns) {
       &#x27;(&#x27; + column_name + &#x27;)&#x27;;
   };
 
-  /*
-   * Get a table name generated from classname.  If is just a modified
-   * &#x27;Table&#x27; or &#x27;Object&#x27;, return a name with appended random number
-   *
-   * @method getTableName
-   * @return {String}
-   */
-  this.getTableName = function() {
-
-    var tn = this.constructor.toString().split();
-    var tt = tn[1].replace(/\(\)$/, &#x27;&#x27;);
-    if (tt === &#x27;Table&#x27; || tt === &#x27;Object&#x27;) {
-      tt += String(Math.floor(Math.random() * 1000000));
-    }
-    return tt;
-  };
-
-  this.instance = function() {
-    var colnames = this.getColumns();
-    var sa = []
-    for (var i = 0; i &lt; colnames.length; i++) {
-      sa.push(this[colnames[i]] + &#x27; : &#x27; + colnames[i]);
-    }
-    return &#x27;{ &#x27; + sa.join(&#x27;, &#x27;) + &#x27; }&#x27;;
-  }
 }
 
 /**

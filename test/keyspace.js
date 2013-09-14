@@ -1,10 +1,10 @@
-var assert = require('assert')
-  , Table = require('../lib/table')
-  , KeySpace = require('../lib/keyspace');
+var assert = require('assert'),
+    Table = require('../lib/table'),
+    KeySpace = require('../lib/keyspace');
 
 describe('KeySpace: ', function() {
   describe('Create', function() {
-    var ks = new KeySpace('ktest', {'directory' : '/tmp/'});
+    var ks = new KeySpace('ktest', {'directory' : '/tmp/', 'REPLICATION' : "{ 'class' : 'SimpleStrategy', 'replication_factor' : 3 }"});
     var t2 = Table.construct('TestTable2',
                              {'a' : 1, 'bool' : true, 'cdouble' : 2.5,
                               'ddecimal' : 3.15, ets : 1376689600368,
@@ -16,6 +16,9 @@ describe('KeySpace: ', function() {
     var t3 = Table.construct('TestTable3',
                              {'a' : 1, 'blist' : [], 'cmap' : {},
                               '_PRIMARY_KEYS' : ['a']})
+    it('create', function() {
+      assert.equal(ks.dbCreate(), 'CREATE KEYSPACE ktest WITH REPLICATION = { \'class\' : \'SimpleStrategy\', \'replication_factor\' : 3 }');
+    });
     it('name and dir', function() {
       assert.equal(ks.dbUse(), 'USE ktest');
       assert.equal(ks.directory, '/tmp/');

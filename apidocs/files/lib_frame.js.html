@@ -117,7 +117,7 @@
 <div class="file">
     <pre class="code prettyprint linenums">
 var uuid = require(&#x27;./uuid&#x27;),
-    Decimal = require(&#x27;decimal&#x27;),
+    Decimal = require(&#x27;./decimal&#x27;),
     util = require(&#x27;util&#x27;),
     BigInteger = require(&#x27;jsbn&#x27;);
 
@@ -369,9 +369,9 @@ Frame.getSimpleTypeSize = function(vtype, value) {
     case 0x0009:                // int
     return 4;
     case 0x0006:                // decimal
-    var d = Decimal(value)
+    var d = new Decimal(value)
     return new BigInteger(
-      String(d.as_int[&#x27;value&#x27;])).toByteArray().length + 4;
+      String(d.ints[&#x27;value&#x27;])).toByteArray().length + 4;
     case 0x000E:                // varint
     return new BigInteger(String(value)).toByteArray().length;
     case 0x0007:                // double
@@ -461,7 +461,7 @@ Frame.writeMap = function(value, ktype, vtype) {
  * @param {any} value of simple type
  * @param {short} colspec column spec
  * @example
-      0x0001:                // ascii
+v      0x0001:                // ascii
       0x0003:                // blob
       0x0004:                // boolean
       0x0007:                // double
@@ -505,6 +505,13 @@ Frame.writeValue = function(value, colspec) {
     tb.writeDoubleBE(value, 0);
     break;
     case 0x0006:                // decimal
+    var d = new Decimal(value);
+    var vb = new BigInteger(String(d.ints[&#x27;value&#x27;])).toByteArray();
+    ln = new Buffer(8);
+    ln.writeInt32BE(vb.length + 4, 0);
+    ln.writeInt32BE(d.ints[&#x27;exp&#x27;], 4);
+    tb = Buffer.concat([ln, new Buffer(vb)]);
+    break;
     case 0x0008:                // float
     tb = new Buffer(4);
     tb.writeFloatBE(value, 0);
@@ -545,7 +552,7 @@ Frame.writeValue = function(value, colspec) {
     case 0x0021:                // map
     tb = Frame.writeMap(value, colspec[&#x27;opt&#x27;], colspec[&#x27;opt2&#x27;]);
     break;
-  }
+   }
   return tb;
 };
 

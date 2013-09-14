@@ -352,8 +352,9 @@ Pool = function(config) {
   /**
    * Set keyspace to use
    * @method setKeyspace
-   * @return {String|KeySpace} name/keyspace
-   * @param {Pool.Connectors} conn send through a specified connector
+   * @param {String|KeySpace} name/keyspace
+   * @param {Pool.Connectors} [conn] send through a specified connector. If not given, set the keyspace for all connections
+   * @param {KeySpace}
    */
   this.setKeyspace = function(keyspace, conn) {
 
@@ -371,13 +372,24 @@ Pool = function(config) {
     }
     if (_one.keyspace) {
       var f = new Frame(&#x27;Query&#x27;, _one.keyspace.dbUse());
-      _one.frameMesg(f, function(err, data) {
-        if (!err) {
-          _one.keyspace.activate();
+      if (conn) {
+        _one.frameMesg(f, function(err, data) {
+          if (!err) {_one.keyspace.activate();}
+        }, conn);
+      } else {
+        var kc = Object.keys(connectors);
+        var rc = 0;
+        for (var k in kc) {
+          _one.frameMesg(f, function(err, data) {
+            if (!err) {
+              rc++;
+              if (rc == kc.length) {_one.keyspace.activate();}
+            }
+          }, connectors[kc[0]]);
         }
-        consoleErrorData(err, data);
-      }, conn);
+      }
     }
+    return _one.keyspace;
   };
 
   /**
@@ -393,11 +405,11 @@ Pool = function(config) {
   };
 
   /**
-   * Send a query
-   *
+   * Send a query. Although, query is usaully a object of specified kind, it
+   * can be used to send raw queries as well.
    * @method sendQuery
    * @async
-   * @param {String|Select|Insert|Update|Delete|Table} query if it is a Table, dbCreate() method is invoked. if it is a query object, query() method is invoked. Otherwise, query string is sent directly.
+   * @param {string|Select|Insert|Update|Delete|Table} query if it is a Table, dbCreate() method is invoked. if it is a query object, query() method is invoked. Otherwise, query string is sent directly.
    * @param {Function} [callback]
    * @param {short} [consistency]
    * @param {boolean} [raw] Send back raw result instead of array of Table instances for Select.
@@ -449,18 +461,11 @@ Pool = function(config) {
     }
   };
 
-};
-
-var readableBuffer = function(s) {
-  var rs = &#x27;&#x27;;
-  for (var i = 0; i &lt; s.length; i++) {
-    if (i != 0) {
-      if ((i % 32) == 0) rs += &#x27;\n&#x27;;
-      else if ((i % 8) == 0) rs += &#x27; &#x27;;
+  this.close = function() {
+    for (var k in connectors) {
+      connectors[k].conn.end();
     }
-    rs += s[i];
   }
-  return rs;
 };
 
 /**
@@ -493,6 +498,7 @@ Pool.Connector = function(options) {
     ctor.emit(&#x27;result&#x27;, data);
   });
   this.conn.on(&#x27;end&#x27;, function() {
+    ctor.ready = false;
     ctor.emit(&#x27;end&#x27;);
   });
   this.conn.on(&#x27;error&#x27;, function (err) {
