@@ -27,36 +27,38 @@ describe('Table ', function() {
                      'ets' : 'timestamp', 'hvarchar' : 'varchar',
                      'fbint' : 'varint', 'iuid' : 'uuid', 'jip' : 'inet'});
   t1.c = 3.1415926;
-  setTimeout(function() {pool.sendQuery(t2, function(err, result) {});},
-             1000);
-  setTimeout(function() {pool.sendQuery(t3, function(err, result) {});},
-             1000);
-
   describe('Table', function() {
-    it('create', function(done) {
+
+    before(function(done) {
+      var cc = 0;
+      var ccf = function(err, result) {
+        if (++cc === 2) {done();}
+      }
       setTimeout(function() {
-        pool.sendQuery(t1, function(err, result) {
-          if (result['changed_schema']) {
-            assert.equal(result['changed_schema'][0], 'CREATED');
-            assert.equal(result['changed_schema'][2], 't1');
-          }
-          done(err);
-        });
+        pool.sendQuery(t2, ccf);
+        pool.sendQuery(t3, ccf);
       }, 1000);
+    });
+    it('create', function(done) {
+      pool.sendQuery(t1, function(err, result) {
+        if (result['changed_schema']) {
+          assert.equal(result['changed_schema'][0], 'CREATED');
+          assert.equal(result['changed_schema'][2], 't1');
+        }
+        done(err);
+      });
     });
     it('re-create failure', function(done) {
-      setTimeout(function() {
-        pool.sendQuery(t1, function(err, result) {
-          if (err) {
-            assert.equal(err[0], 9216);
-            assert.equal(err[2]['table'], 't1');
-            done();
-          }
-        });
-      }, 1000);
+      pool.sendQuery(t1, function(err, result) {
+        if (err) {
+          assert.equal(err[0], 9216);
+          assert.equal(err[2]['table'], 't1');
+          done();
+        }
+      });
     });
-    describe('inserts', function(done) {
-      var i1 = new Q.Insert(t1, { 'a' : 1, 'b' : 'foo' });
+    describe('inserts', function() {
+      var i1 = new Q.Insert(t1, { 'a' : 1, 'b' : 'foo', 'c' : 5.20 });
       var i2 = new Q.Insert('T1', { 'a' : 2, 'b' : 'bar', 'c' : 3.1 });
       var i3 = new Q.Insert(t2, { 'a' : 3, 'b' : [ 2, 3, 4, 5 ],
                                   'c' : { 'p' : 'some', 'q' : 'string' }});
@@ -68,85 +70,76 @@ describe('Table ', function() {
                                  hvarchar : 'some text',
                                  iuid : 'c5abea64-881d-4381-bc51-0d5ac881bd08',
                                  jip : '192.168.8.101'});
-      var ic = 0;
-      var icplus = function(err, result) {if (!err) {ic++;}};
-      setTimeout(function() {
-          pool.sendQuery(i1, icplus);
-          pool.sendQuery(i2, icplus);
-          pool.sendQuery(i3, icplus);
-          pool.sendQuery(i4, icplus);
-          pool.sendQuery(i5, icplus);
-        }, 2500);
-
       it('inserts', function(done) {
-        setTimeout(function() {if (ic === 5) {done();}}, 2800);
+        var ic = 0;
+        var icplus = function(err, result) {
+          if (!err) {ic++;}
+          if (ic === 5) {done();}
+        };
+        pool.sendQuery(i1, icplus);
+        pool.sendQuery(i2, icplus);
+        pool.sendQuery(i3, icplus);
+        pool.sendQuery(i4, icplus);
+        pool.sendQuery(i5, icplus);
       });
-    });
-    describe('updates', function() {
-      var u1 = new Q.Update(t1, {'d' : 'foo2'}).where({'a' : 1, 'b' : 'foo'});
-      var u2 = new Q.Update(t2, {'b' : {'list+' : [6]}}).where({'a' : 3});
-      var ic = 0;
-      var icplus = function(err, result) {if (!err) {ic++;}};
-      setTimeout(function() {
-        pool.sendQuery(u1, icplus);
-        pool.sendQuery(u2, icplus);
-      }, 2600);
-      it('updates', function(done) {
-        setTimeout(function() {if (ic === 2) {done();}}, 3000);
+      describe('updates', function() {
+        var u1 = new Q.Update(t1, {'d' : 'foo2'}).where({'a' : 1, 'b' : 'foo'});
+        var u2 = new Q.Update(t2, {'b' : {'list+' : [6]}}).where({'a' : 3});
+        it('updates', function(done) {
+          var ic = 0;
+          var icplus = function(err, result) {
+            if (!err) {ic++;}
+            if (ic === 2) {done();}
+          };
+          pool.sendQuery(u1, icplus);
+          pool.sendQuery(u2, icplus);
+        });
       });
-    });
-    describe('selects', function() {
-      var s1 = new Q.Select(t1).where({'a' : 1});
-      var s2 = new Q.Select(t2, ['a', 'c']).where({'a' : 4});
-      var s3 = new Q.Select(t3);
-      var r1, r2, r3;
-      setTimeout(function() {
+      describe('selects', function() {
+        var s1 = new Q.Select(t1).where({'a' : 1});
+        var s2 = new Q.Select(t2, ['a', 'c']).where({'a' : 4});
+        var s3 = new Q.Select(t3);
+        it('one', function(done) {
           pool.sendQuery(s1, function(err, result) {
-            if (!err) {r1 = result[0]; }});
+            if (result[0].a === 1 && result[0].d === 'foo2') {
+              done();}
+          });
+        });
+        it('two', function(done) {
           pool.sendQuery(s2, function(err, result) {
-            if (!err) {r2 = result; } }, null, true);
+            if (result['rows'][0][0] === 4 &&
+                result['rows'][0][1].q === 'one') {
+              done();}}, null, true);
+        });
+        it('three', function(done) {
           pool.sendQuery(s3, function(err, result) {
-            if (!err) {r3 = result; } }, null, true);
-        }, 3000);
-      it('one', function(done) {
-        setTimeout(function() {if (r1.a === 1 && r1.d === 'foo2') {
-          done();}}, 3400);
+            if (result['rows'][0]) {
+              done();}}, null, true);
+        });
       });
-      it('two', function(done) {
-        setTimeout(function() {if (r2['rows'][0][0] === 4 &&
-                                   r2['rows'][0][1].q === 'one') {
-          done();}}, 3400);
-      });
-      it('three', function(done) {
-        setTimeout(function() {if (r3['rows'][0]) {
-          done();}}, 4500);
-      });
-    });
-    describe('Drops', function() {
-      it('drop', function(done) {
-        setTimeout(function() {
-          pool.sendQuery(t1.dbDrop(), function(err, result) {
-            if (result['changed_schema']) {
-              assert.equal(result['changed_schema'][0], 'DROPPED');
-              assert.equal(result['changed_schema'][2], 't1');
-            }
-            pool.sendQuery(t2.dbDrop(), function(err, result) {});
-            pool.sendQuery(t3.dbDrop(), function(err, result) {});
-            done(err);
-          });
-        }, 500);
-      });
-      it('re-drop failure', function(done) {
-        setTimeout(function() {
-          pool.sendQuery(t1.dbDrop(), function(err, result) {
-            if (err) {
-              assert.equal(err[0], 8960);
-              assert.equal(err[1].match('t1')[0], 't1');
-              done();
-            }
-          });
-        }, 500);
+      describe('Drops', function() {
+        it('drop', function(done) {
+            pool.sendQuery(t1.dbDrop(), function(err, result) {
+              if (result['changed_schema']) {
+                assert.equal(result['changed_schema'][0], 'DROPPED');
+                assert.equal(result['changed_schema'][2], 't1');
+              }
+              pool.sendQuery(t2.dbDrop(), function(err, result) {});
+              pool.sendQuery(t3.dbDrop(), function(err, result) {});
+              done(err);
+            });
+        });
+        it('re-drop failure', function(done) {
+            pool.sendQuery(t1.dbDrop(), function(err, result) {
+              if (err) {
+                assert.equal(err[0], 8960);
+                assert.equal(err[1].match('t1')[0], 't1');
+                done();
+              }
+            });
+        });
       });
     });
   });
-})
+});
+

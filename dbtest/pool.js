@@ -17,7 +17,6 @@ describe('Connection: ', function() {
       new Frame('Startup').send(1, c);
     });
     it('credentials', function(done) {
-      var cf = function() {
         c.on('result', function(data) {
           var p = new Parser();
           p.write(new Buffer(data));
@@ -26,30 +25,22 @@ describe('Connection: ', function() {
         var f = new Frame('Credentials', {
           'username' : 'u_tester', 'password' : 'pw_test'});
         f.send(2, c);
-      };
-      setTimeout(cf, 200);
     });
     it('options', function(done) {
-      var of = function() {
         c.on('result', function(data) {
           var p = new Parser();
           p.write(new Buffer(data));
           if (p.result['supported']) {done();}
         });
         new Frame('Options').send(3, c);
-      };
-      setTimeout(of, 250);
     });
     it('keyspace', function(done) {
-      var kf = function() {
-        c.on('result', function(data) {
-          var p = new Parser();
-          p.write(new Buffer(data));
-          if (p.result['keyspace'] === 'casson_test') {done();}
-        });
-        new Frame('Query', 'USE casson_test').send(4, c);
-      };
-      setTimeout(kf, 300);
+      c.on('result', function(data) {
+        var p = new Parser();
+        p.write(new Buffer(data));
+        if (p.result['keyspace'] === 'casson_test') {done();}
+      });
+      new Frame('Query', 'USE casson_test').send(4, c);
     });
   });
   describe('Pool', function() {
