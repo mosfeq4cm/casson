@@ -41,7 +41,7 @@ describe('Table: ', function() {
       assert.equal(t._column_types.c, 'uuid');
     })
   })
-  describe('Create statement simple', function() {
+  describe('Create simple', function() {
     var t = Table.construct('TestTable',
                             {a : 3, b : 'str', _PRIMARY_KEYS : ['a']});
     it('default int type', function() {
@@ -55,99 +55,120 @@ describe('Table: ', function() {
     });
     it('query statement ', function() {
       assert.equal(t.dbCreate(), 'CREATE TABLE testtable(\n\ta int,\n\tb text,\n\tPRIMARY KEY (a)\n)');
-    })
-    describe('Create statement complex', function() {
-      var t2 = Table.construct('TestTable2',
-                               {'a' : 1, 'bool' : true, 'cdouble' : 2.5,
-                                'ddecimal' : 3.15, ets : 1376689600368,
-                                gcount : 1, hvarchar : 'some text',
-                                iuid : 'c5abea64-881d-4381-bc51-0d5ac881bd08',
-                                jip : '192.168.8.101:9042',
-                                '_PRIMARY_KEYS' : ['a', 'fbint']})
-      var t = Table.construct('TestTable',
-                              {a : 3, b : 'str', _PRIMARY_KEYS : ['a']});
-      it('default boolean type', function() {
-        assert.equal(t2._column_types['bool'], 'boolean');
-      });
-      it('default float type', function() {
-        assert.equal(t2._column_types['cdouble'], 'float');
-      });
-      it('default bigint type', function() {
-        assert.equal(t2._column_types['ets'], 'bigint');
-      });
-      it('default timeuuid type', function() {
-        assert.equal(t2._column_types['iuid'], 'timeuuid');
-      });
-      it('query statement ', function() {
-        assert.equal(t2.dbCreate(), 'CREATE TABLE testtable2(\n\ta int,\n\tbool boolean,\n\tcdouble float,\n\tddecimal float,\n\tets bigint,\n\tgcount int,\n\thvarchar text,\n\tiuid timeuuid,\n\tjip text,\n\tPRIMARY KEY (a,fbint)\n)');
-      })
-    });
-    describe('Create statement complex', function() {
-      var t2 = Table.construct('TestTable2',
-                               {'a' : 1, 'bool' : true, 'cdouble' : 2.5,
-                                'ddecimal' : 3.15, ets : 1376689600368,
-                                gcount : 1, hvarchar : 'some text',
-                                iuid : 'c5abea64-881d-4381-bc51-0d5ac881bd08',
-                                jip : '192.168.8.101:9042',
-                                '_PRIMARY_KEYS' : ['a', 'fbint']})
-      t2.setColumnTypes({'cdouble' : 'double', 'ddecimal' : 'decimal',
-                         'ets' : 'timestamp', 'hvarchar' : 'varchar',
-                         'iuid' : 'uuid', 'jip' : 'inet'});
-      t2.setColumnTypes({'gcount' : 'counter'});
-      it('changing float to double type', function() {
-        assert.equal(t2._column_types['cdouble'], 'double');
-      });
-      it('changing float to decimal type', function() {
-        assert.equal(t2._column_types['ddecimal'], 'decimal');
-      });
-      it('changing bigint to timestamp type', function() {
-        assert.equal(t2._column_types['ets'], 'timestamp');
-      });
-      it('changing text to varchar type', function() {
-        assert.equal(t2._column_types['hvarchar'], 'varchar');
-      });
-      it('changing string to inet type', function() {
-        assert.equal(t2._column_types['jip'], 'inet');
-      });
-      it('changing timeuuid to uuid type', function() {
-        assert.equal(t2._column_types['iuid'], 'uuid');
-      });
-    });
-    describe('Create statement collection 1', function() {
-      var t3 = Table.construct('TestTable3',
-                               {'a' : 1, 'blist' : [], 'cmap' : {},
-                                '_PRIMARY_KEYS' : ['a']})
-      it('default list type', function() {
-        assert.equal(t3._column_types['blist'][0], 'list');
-        assert.equal(t3._column_types['blist'][1], 'text');
-      });
-      it('default map type', function() {
-        assert.equal(t3._column_types['cmap'][0], 'map');
-        assert.equal(t3._column_types['cmap'][1], 'text');
-        assert.equal(t3._column_types['cmap'][2], 'text');
-      });
-      it('query statement ', function() {
-        assert.equal(t3.dbCreate(), 'CREATE TABLE testtable3(\n\ta int,\n\tblist list<text>,\n\tcmap map<text,text>,\n\tPRIMARY KEY (a)\n)');
-      })
-    });
-    describe('Create statement collection 2', function() {
-      var t4 = Table.construct('TestTable4',
-                               {'a' : 1, 'blist' : [1], 'cmap' : {
-                                 'c5abea64-881d-4381-bc51-0d5ac881bd08' : 2.5},
-                                '_PRIMARY_KEYS' : ['a']})
-      it('list type with values', function() {
-        assert.equal(t4._column_types['blist'][0], 'list');
-        assert.equal(t4._column_types['blist'][1], 'int');
-      });
-      it('map type with values', function() {
-        assert.equal(t4._column_types['cmap'][0], 'map');
-        assert.equal(t4._column_types['cmap'][1], 'timeuuid');
-        assert.equal(t4._column_types['cmap'][2], 'float');
-      });
-      it('query statement ', function() {
-        assert.equal(t4.dbCreate(), 'CREATE TABLE testtable4(\n\ta int,\n\tblist list<int>,\n\tcmap map<timeuuid,float>,\n\tPRIMARY KEY (a)\n)');
-      })
     });
   });
-})
+  describe('Create complex', function() {
+    var t2 = Table.construct('TestTable2',
+                             {'a' : 1, 'bool' : true, 'cdouble' : 2.5,
+                              'ddecimal' : 3.15, ets : 1376689600368,
+                              gcount : 1, hvarchar : 'some text',
+                              iuid : 'c5abea64-881d-4381-bc51-0d5ac881bd08',
+                              jip : '192.168.8.101:9042',
+                              '_PRIMARY_KEYS' : ['a', 'fbint']})
+    var t = Table.construct('TestTable',
+                            {a : 3, b : 'str', _PRIMARY_KEYS : ['a']});
+    it('default boolean type', function() {
+      assert.equal(t2._column_types['bool'], 'boolean');
+    });
+    it('default float type', function() {
+      assert.equal(t2._column_types['cdouble'], 'float');
+    });
+    it('default bigint type', function() {
+      assert.equal(t2._column_types['ets'], 'bigint');
+    });
+    it('default timeuuid type', function() {
+      assert.equal(t2._column_types['iuid'], 'timeuuid');
+    });
+    it('query statement ', function() {
+      assert.equal(t2.dbCreate(), 'CREATE TABLE testtable2(\n\ta int,\n\tbool boolean,\n\tcdouble float,\n\tddecimal float,\n\tets bigint,\n\tgcount int,\n\thvarchar text,\n\tiuid timeuuid,\n\tjip text,\n\tPRIMARY KEY (a,fbint)\n)');
+    })
+  });
+  describe('Create more complex', function() {
+    var t2 = Table.construct('TestTable2',
+                             {'a' : 1, 'bool' : true, 'cdouble' : 2.5,
+                              'ddecimal' : 3.15, ets : 1376689600368,
+                              gcount : 1, hvarchar : 'some text',
+                              iuid : 'c5abea64-881d-4381-bc51-0d5ac881bd08',
+                              jip : '192.168.8.101:9042',
+                              '_PRIMARY_KEYS' : ['a', 'fbint']})
+    t2.setColumnTypes({'cdouble' : 'double', 'ddecimal' : 'decimal',
+                       'ets' : 'timestamp', 'hvarchar' : 'varchar',
+                       'iuid' : 'uuid', 'jip' : 'inet'});
+    t2.setColumnTypes({'gcount' : 'counter'});
+    it('changing float to double type', function() {
+      assert.equal(t2._column_types['cdouble'], 'double');
+    });
+    it('changing float to decimal type', function() {
+      assert.equal(t2._column_types['ddecimal'], 'decimal');
+    });
+    it('changing bigint to timestamp type', function() {
+      assert.equal(t2._column_types['ets'], 'timestamp');
+    });
+    it('changing text to varchar type', function() {
+      assert.equal(t2._column_types['hvarchar'], 'varchar');
+    });
+    it('changing string to inet type', function() {
+      assert.equal(t2._column_types['jip'], 'inet');
+    });
+    it('changing timeuuid to uuid type', function() {
+      assert.equal(t2._column_types['iuid'], 'uuid');
+    });
+  });
+  describe('Create collection 1', function() {
+    var t3 = Table.construct('TestTable3',
+                             {'a' : 1, 'blist' : [], 'cmap' : {},
+                              '_PRIMARY_KEYS' : ['a']})
+    it('default list type', function() {
+      assert.equal(t3._column_types['blist'][0], 'list');
+      assert.equal(t3._column_types['blist'][1], 'text');
+    });
+    it('default map type', function() {
+      assert.equal(t3._column_types['cmap'][0], 'map');
+      assert.equal(t3._column_types['cmap'][1], 'text');
+      assert.equal(t3._column_types['cmap'][2], 'text');
+    });
+    it('query statement ', function() {
+      assert.equal(t3.dbCreate(), 'CREATE TABLE testtable3(\n\ta int,\n\tblist list<text>,\n\tcmap map<text,text>,\n\tPRIMARY KEY (a)\n)');
+    })
+  });
+  describe('Create collection 2', function() {
+    var t4 = Table.construct('TestTable4',
+                             {'a' : 1, 'blist' : [1], 'cmap' : {
+                               'c5abea64-881d-4381-bc51-0d5ac881bd08' : 2.5},
+                              '_PRIMARY_KEYS' : ['a']})
+    it('list type with values', function() {
+      assert.equal(t4._column_types['blist'][0], 'list');
+      assert.equal(t4._column_types['blist'][1], 'int');
+    });
+    it('map type with values', function() {
+      assert.equal(t4._column_types['cmap'][0], 'map');
+      assert.equal(t4._column_types['cmap'][1], 'timeuuid');
+      assert.equal(t4._column_types['cmap'][2], 'float');
+    });
+    it('query statement ', function() {
+      assert.equal(t4.dbCreate(), 'CREATE TABLE testtable4(\n\ta int,\n\tblist list<int>,\n\tcmap map<timeuuid,float>,\n\tPRIMARY KEY (a)\n)');
+    })
+  });
+  describe('Options', function() {
+    it('a basic option', function() {
+      var t3 = Table.construct('TestTable3', {'a' : 1, 'b' : 2.5,
+                                              _PRIMARY_KEYS : ['a']});
+      t3.setOptions({'tombstone_threshold' : 0.3});
+      assert.equal(t3.dbCreate(), 'CREATE TABLE testtable3(\n\ta int,\n\tb float,\n\tPRIMARY KEY (a)\n)\tWITH\ntombstone_threshold = 0.3');
+    });
+    it('two options', function() {
+      var t3 = Table.construct('TestTable3', {'a' : 1, 'b' : 2.5,
+                                              _PRIMARY_KEYS : ['a']});
+      t3.setOptions({'compact storage' : '', 'compression' :
+                     "{ 'sstable_compression' : 'DeflateCompressor', 'chunk_length_kb' : 64 }"});
+    assert.equal(t3.dbCreate(), 'CREATE TABLE testtable3(\n\ta int,\n\tb float,\n\tPRIMARY KEY (a)\n)\tWITH\ncompact storage  AND\ncompression = { \'sstable_compression\' : \'DeflateCompressor\', \'chunk_length_kb\' : 64 }');
+    });
+    it('cluster order by', function() {
+      var t3 = Table.construct('TestTable3', {'a' : 1, 'b' : 2.5,
+                                              _PRIMARY_KEYS : ['a']});
+      t3.setOptions({'cluserting order by' : "b ASC"});
+      assert.equal(t3.dbCreate(), 'CREATE TABLE testtable3(\n\ta int,\n\tb float,\n\tPRIMARY KEY (a)\n)\tWITH\ncluserting order by (b ASC)');
+    });
+  });
+});
 
