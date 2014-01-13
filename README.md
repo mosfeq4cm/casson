@@ -67,6 +67,13 @@ Tables need data:
     pool.sendQuery(i3);
     pool.sendQuery(i4);
 
+Batches can be sent instead of individual UPDATEs/INSERTs/DELETEs:
+
+    var b1 = new casson.Query.Batch();
+    b1.addStatement(i1);
+    b1.addStatement(i2);
+    pool.sendQuery(b1);
+
 So the javascript smoothly maps to the cassandra types, inlcuding collection
 types like `List` and `Map`. 
 
@@ -146,7 +153,6 @@ for now.
 
 ## To Do
 
--   Implement `Batch` CQL command.
 
 ## Contributors
 
