@@ -119,7 +119,7 @@ idea to a take a look at [Cassandra documentation](http://www.datastax.com/docum
 
 -   [`jsbn`](https://npmjs.org/package/jsbn) for handling big integers
 
--   [`mocha`](http://visionmedia.github.io/mocha/) for testing
+-   [`mocha`](http://mochajs.org/) for testing
 
 -   [`istanbul`](https://npmjs.org/package/istanbul) for test coverage
 
